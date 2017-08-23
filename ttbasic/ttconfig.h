@@ -2,8 +2,9 @@
 // 豊四季Tiny BASIC for Arduino STM32 構築コンフィグレーション
 // 作成日 2017/06/22 たま吉さん
 //
-// 修正 2017/07/29 , NTSC利用有無指定の追加
-// 修正日 2017/08/06 たま吉さん, Wireライブラリ新旧対応
+// 修正日 2017/07/29 NTSC利用有無指定の追加
+// 修正日 2017/08/06 Wireライブラリ新旧対応
+// 修正日 2017/08/23 設定の整合性チェック＆補正対応
 //
 
 #ifndef __ttconfig_h__
@@ -20,8 +21,12 @@
 // ** デフォルトスクリーンモードの指定 0:ターミナルモード 1:NTSCビデオ 224x216
 #define USE_SCREEN_MODE 1  // USE_NTSC=0の場合、0を指定すること (デフォルト:1)
 
+// 設定の矛盾補正
+#if USE_TFT  == 1
+ #define USE_NTSC 0
+#endif
 #if USE_NTSC == 0 && USE_SCREEN_MODE == 1
-// #define USE_SCREEN_MODE 0
+ #define USE_SCREEN_MODE 0
 #endif
 
 // ** ターミナルモード時のデフォルト スクリーンサイズ  ***********************
@@ -40,7 +45,7 @@
 #define FLG_CHK_BOOT1  1 // 0:なし  1:あり // (デフォルト:1)
 
 //** Wireライブラリ新旧指定対応
-#define OLD_WIRE_LIB  1 // 0:2017/08/04以降のバージョン 1:R20170323相当
+#define OLD_WIRE_LIB  0 // 0:2017/08/04以降のバージョン 1:R20170323相当
 
 // ** I2Cライブラリの選択 0:Wire(ソフトエミュレーション) 1:HWire  *************
 #define I2C_USE_HWIRE  1 // (デフォルト:1)
@@ -50,6 +55,10 @@
 
 // ** SDカードの利用      0:利用しない 1:利用する *****************************
 #define USE_SD_CARD    1 // (デフォルト:1)
+#define USE_SD_CARD    1 // (デフォルト:1)
+#if USE_SD_CARD == 1 && USE_INNERRTC == 0
+ #define USE_INNERRTC 1
+#endif
 
 // ** フォントデータ指定 ******************************************************
 #define FONTSELECT  1  // 0 ～ 3 (デフォルト :1)

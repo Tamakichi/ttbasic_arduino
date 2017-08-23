@@ -2,7 +2,7 @@
 // 豊四季Tiny BASIC for Arduino STM32 グラフィック描画デバイス
 // 2017/07/19 by たま吉さん
 //
-
+/*
 #include "tGraphicDev.h"
 
 uint16_t tv_get_gwidth();
@@ -22,10 +22,16 @@ uint16_t tv_getGVRAMSize();
 void    tv_write(uint8_t c);
 
 // 初期化
-void tGraphicDev::init() {
-  gwidth   = tv_get_gwidth();
-  gheight  = tv_get_gheight();  
+void tGraphicDev::ginit() {
+  g_width   = tv_get_gwidth();
+  g_height  = tv_get_gheight();  
 }
+
+// フォントアドレスの参照
+uint8_t *tGraphicDev::getfontadr() {
+	return tv_getFontAdr()+3; 
+}  
+
 
 // グラフィク表示用メモリアドレス参照
 uint8_t* tGraphicDev::getGRAM() {
@@ -94,3 +100,5 @@ void tGraphicDev::set_gcursor(uint16_t x, uint16_t y) {
 void tGraphicDev::gputch(uint8_t c) {
  tv_write(c); 
 }
+*/
+

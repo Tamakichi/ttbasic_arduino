@@ -39,8 +39,51 @@
 
 #define SC_TEXTNUM   256  // 1行確定文字列長さ
 
-//class tTVscreen : public tscreenBase, public tSerialDev, public tGraphicDev {
 class tTVscreen : public tscreenBase, public tGraphicDev {
+  private:
+//<-- 2017/08/19 追加	
+    TTVout TV;
+
+    uint16_t c_width;    // 横文字数
+    uint16_t c_height;   // 縦文字数
+    uint8_t* vram;       // VRAM先頭
+
+    uint32_t *b_adr;     // フレームバッファビットバンドアドレス
+
+	//void tv_fontInit();
+    void tv_init(int16_t ajst, uint8_t* extmem=NULL, uint8_t vmode=SC_DEFAULT);
+	void tv_end();
+
+
+	uint16_t tv_getGVRAMSize();
+	uint8_t  drawCurs(uint8_t x, uint8_t y);
+	void     write(uint8_t x, uint8_t y, uint8_t c);
+	void     clerLine(uint16_t l);
+
+
+ 	void tv_dot(int16_t x, int16_t y, int16_t n, uint8_t c);
+    void tv_bitmap(int16_t x, int16_t y, uint8_t* adr, uint16_t index, uint16_t w, uint16_t h, uint16_t n);
+
+  public:	
+	 // グラフィック描画
+    void  ginit() ;
+    inline uint8_t *getfontadr();// フォントアドレスの参照
+    uint8_t* getGRAM();
+    int16_t  getGRAMsize();
+    void     pset(int16_t x, int16_t y, uint8_t c);
+    void     line(int16_t x1, int16_t y1, int16_t x2, int16_t y2, uint8_t c);
+    void     circle(int16_t x, int16_t y, int16_t r, uint8_t c, int8_t f);
+    void     rect(int16_t x, int16_t y, int16_t w, int16_t h, uint8_t c, int8_t f);
+    void     bitmap(int16_t x, int16_t y, uint8_t* adr, uint16_t index, uint16_t w, uint16_t h, uint16_t d);
+    //virtual void cscroll(int16_t x, int16_t y, int16_t w, int16_t h, uint8_t d);
+    void     gscroll(int16_t x, int16_t y, int16_t w, int16_t h, uint8_t mode);
+    int16_t  gpeek(int16_t x, int16_t y);
+    int16_t  ginp(int16_t x, int16_t y, int16_t w, int16_t h, uint8_t c);
+    void     set_gcursor(uint16_t, uint16_t);
+    void     gputch(uint8_t c);
+
+	
+// -->
   protected:
     void INIT_DEV(){};                           // デバイスの初期化
     void MOVE(uint8_t y, uint8_t x);             // キャラクタカーソル移動 **
@@ -73,8 +116,6 @@ class tTVscreen : public tscreenBase, public tGraphicDev {
     void show_curs(uint8_t flg);                      // カーソルの表示/非表示制御
     void draw_cls_curs();                             // カーソルの消去
 
-    //void setColor(uint16_t fc, uint16_t bc);          // 文字色指定
-    //void setAttr(uint16_t attr);                      // 文字属性
     void beep() {/*addch(0x07);*/};
 
     inline uint8_t IS_PRINT(uint8_t ch) {

@@ -16,6 +16,7 @@
 // 2017/08/12 RENUMに重大な不具合あり、V0.83版の機能に一時差し換え
 // 2017/08/13 TFT(ILI9341)モジュールの暫定対応
 // 2017/08/19 SAVE,ERASE,LOAD,LRUN,CONFIGコマンドのプログラム番号範囲チェックミス不具合対応
+// 2017/08/23 NTSC利用しない場合のピン機能利用テーブルの定義の対応
 //
 
 #include <Arduino.h>
@@ -182,21 +183,29 @@ const WiringPinMode pinType[] = {
 #define IsIO_PIN(N)  IsUseablePin(N,FNC_IN_OUT)
 
 // ピン機能チェックテーブル
-#if USE_TFT == 1
+#if USE_TFT == 1 // TFT利用専用環境
 const uint8_t pinFunc[]  = {
   5,5,5,5,5,5,7,7,3,3,  //  0 -  9: PA0,PA1,PA2,PA3,PA4,PA5,PA6,PA7,PA8,PA9,
   3,0,0,1,1,1,7,7,1,1,  // 10 - 19: PA10,PA11,PA12,PA13,PA14,PA15,PB0,PB1,PB2,PB3, 
   0,0,0,0,1,0,1,0,0,0,  // 20 - 29: PB4,PB5,PB6,PB7,PB8,PB9,PB10,PB11,PB12,PB13,
   0,0,1,0,0,            // 30 - 34: PB14,PB15,PC13,PC14,PC15,
 };
-#else
+#elif USE_NTSC == 1  // NTSC利用環境
 const uint8_t pinFunc[]  = {
   5,0,5,5,5,5,7,7,3,3,  //  0 -  9: PA0,PA1,PA2,PA3,PA4,PA5,PA6,PA7,PA8,PA9,
   3,0,0,1,1,1,7,7,1,1,  // 10 - 19: PA10,PA11,PA12,PA13,PA14,PA15,PB0,PB1,PB2,PB3, 
   0,0,0,0,1,0,1,1,1,1,  // 20 - 29: PB4,PB5,PB6,PB7,PB8,PB9,PB10,PB11,PB12,PB13,
   1,0,1,0,0,            // 30 - 34: PB14,PB15,PC13,PC14,PC15,
 };
+#else // ターミナルコンソールのみ利用環境(2017/08/23 グループメンバー投稿修正の取り込み)
+const uint8_t pinFunc[] = {
+ 5,5,5,5,5,5,7,7,3,3,   //  0 -  9: PA0,PA1,PA2,PA3,PA4,PA5,PA6,PA7,PA8,PA9, (変更) PA1...5
+ 3,0,0,1,1,1,7,7,1,1,   // 10 - 19: PA10,PA11,PA12,PA13,PA14,PA15,PB0,PB1,PB2,PB3, 
+ 1,1,0,0,1,1,1,1,1,1,   // 20 - 29: PB4,PB5,PB6,PB7,PB8,PB9,PB10,PB11,PB12,PB13, (変更) PB4,5,9...1
+ 1,1,1,0,0,             // 30 - 34: PB14,PB15,PC13,PC14,PC15,　(変更) PB15...1
+};
 #endif
+
 // ピン利用可能チェック
 inline uint8_t IsUseablePin(uint8_t pinno, uint8_t fnc) {
   return pinFunc[pinno] & fnc;
@@ -3453,7 +3462,8 @@ void ildbmp() {
     return;
   }
   // 画像のロード
-  rc = fs.loadBitmap(fname, ptr, x, y, w, h, mode);
+#if USE_SD_CARD == 1
+rc = fs.loadBitmap(fname, ptr, x, y, w, h, mode);
   if (rc == SD_ERR_INIT) {
     err = ERR_SD_NOT_READY;
   } else if (rc == SD_ERR_OPEN_FILE) {
@@ -3461,6 +3471,9 @@ void ildbmp() {
   } else if (rc == SD_ERR_READ_FILE) {
     err =  ERR_FILE_READ;
   }
+#else
+ err = ERR_NOT_SUPPORTED;
+#endif 
 }
 
 // DWBMP  "ファイル名" ,X,Y,BX,BY,W,H[,mode]
