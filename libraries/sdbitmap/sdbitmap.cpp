@@ -199,25 +199,53 @@ uint32_t sdbitmap::getImageSize() {
 //  0以外  異常終了
 //
 uint8_t sdbitmap::getBitmap(uint8_t*bmp, uint8_t mode) {
-  return getBitmap(bmp, 0, 0, _bmpWidth, _bmpHeight, mode);
+  return getBitmap(bmp, 0,0,0, 0, _bmpWidth, _bmpHeight, mode);
 }
 
+
+void setVdata(uint8_t* ptr, uint8_t data, uint16_t x, uint16_t y, uint8_t len, uint16_t w) {
+/*
+  Serial.print("x=");Serial.print(x,DEC);
+  Serial.print(" y=");Serial.print(y,DEC);
+  Serial.print(" len=");Serial.print(len,DEC);
+  Serial.print(" w=");Serial.print(w,DEC);
+
+  Serial.print(" data=");
+  for (uint8_t i=0; i <8; i++) {
+    Serial.write(0x80>>i 
+  }  
+ */ 
+  
+  ptr += w*(y/8) + x;
+  y %= 8;
+  
+  for (uint16_t i=0; i < len; i++) {
+    if (data & 0x80>>i)   // ドットONの場合
+       ptr[i] |= 1<<y;
+    else                   // ドットOFFの場合
+       ptr[i] &= ~(1<<y);
+  }
+}
 
 //
 // ビットマップデータの切り出し取得
 // 引数
 //  bmp : データ格納アドレス
+//  x0  : 格納先位置  ：横
+//  y0  : 格納先位置  ：縦
 //  x   : 取り出し位置：横 (8の倍数であること）
 //  y   : 取り出し位置：縦
 //  w   : 取り出し幅 (8の倍数であること）
 //  h   : 取り出し高さ
 //  mode: 0:通常 1:反転
-//  offset: 次のラインの位置移動用のオフセット(デフォルト=0)
+//  offset: 次のラインの位置移動用のオフセット(デフォルト=0) or モノクログラフィック液晶の横幅
+//  vmode : データ格納形式(0:通常 1:モノクログラフィック液晶形式)
 // 戻り値
 //  0:     正常終了
 //  0以外  異常終了
 // 
-uint8_t sdbitmap::getBitmap(uint8_t*bmp, uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint8_t mode,uint16_t offset) {
+uint8_t sdbitmap::getBitmap(uint8_t*bmp, uint16_t x0, uint16_t y0, 
+                            uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint8_t mode,uint16_t offset,uint8_t vmode) {
   uint32_t pos = 0;
   uint16_t ptr = 0;
 
@@ -248,17 +276,26 @@ uint8_t sdbitmap::getBitmap(uint8_t*bmp, uint16_t x, uint16_t y, uint16_t w, uin
       _bmpfile.seek(pos);
 
     // 1ライン分のデータの取得
-    for ( uint16_t col = bx ; col < bx+bw ; col++ ) {
-      bmp[ptr++] =  mode ? ~_bmpfile.read(): _bmpfile.read();
+    if (vmode == 0) {
+      // 格納先が通常形式
+      for ( uint16_t col = bx ; col < bx+bw ; col++ ) {
+        bmp[ptr++] =  mode ? ~_bmpfile.read(): _bmpfile.read();
+      }    	
+      if (bit_w && ptr) // 8の倍数でない
+        bmp[ptr-1] &= 0xff<<(8-bit_w);
+     	if(offset) ptr+=offset-bw;
+    } else {
+      // モノクログラフィック液晶形式
+      for ( uint16_t col = bx ; col < bx+bw ; col++ ) {
+        setVdata(bmp, _bmpfile.read(), x0+(col-bx)*8, y0+row-y,8, offset);
+      }
+      if (bit_w && ptr) // 8の倍数でない
+        setVdata(bmp, 0, x0+(bx+bw-1)*8+bit_w, y0+row-y, 8-bit_w, offset);
     }
-  	
-    if (bit_w && ptr) // 8の倍数でない
-      bmp[ptr-1] &= 0xff<<(8-bit_w);
-  	if(offset) ptr+=offset-bw;
   }
   return 0;
 }
-
+  
 //
 // 指定位置から8ビット(1バイト)取り出し
 //

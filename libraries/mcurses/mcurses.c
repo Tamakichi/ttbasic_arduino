@@ -191,7 +191,7 @@ mcurses_addch_or_insch (uint_fast8_t ch, uint_fast8_t insert)
 {
     static uint_fast8_t  charset = 0xff;
     static uint_fast8_t  insert_mode = FALSE;
-
+/* 2017/08/24 
     if (ch >= 0x80 && ch <= 0x9F)
     {
         if (charset != CHARSET_G1)
@@ -209,7 +209,7 @@ mcurses_addch_or_insch (uint_fast8_t ch, uint_fast8_t insert)
             charset = CHARSET_G0;
         }
     }
-
+*/
     if (insert)
     {
         if (! insert_mode)
@@ -733,7 +733,7 @@ getnstr (char * str, uint_fast8_t maxlen)
 
             default:
 //                if (curlen < maxlen && (ch & 0x7F) >= 32 && (ch & 0x7F) < 127)      // printable ascii 7bit or printable 8bit ISO8859
-                if (curlen < maxlen && (ch & 0x7F) >= 32 ) // 2017/08/04  2017/08/04 by Tamalichi
+                if (curlen < maxlen /*&& (ch & 0x7F) >= 32*/ ) // 2017/08/04  2017/08/04 by Tamalichi
                 {
                     for (i = curlen; i > curpos; i--)
                     {

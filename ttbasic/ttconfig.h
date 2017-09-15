@@ -11,21 +11,28 @@
 #define __ttconfig_h__
 
 // ** TFTILI9341 SPI)液晶モジュール利用有無(まだ不完全) **********************
-#define USE_TFT   0  // 0:利用しない 1:利用する (デフォルト:0)
-                     // 利用時は USE_NTSC を0にすること
-                     // ※ 、SDカード併用でフリーズ発生
-                     
+#define USE_TFT     0 // 0:利用しない 1:利用する (デフォルト:0)
+                      // 利用時は USE_NTSC を0にすること
+ #define TFT_SCMODE 1 // スクリーンモード(1～6 デオフォルト:1 )
+ #define TFT_RTMODE 3 // 画面の向き (0～3: デフォルト: 3)
+
+// ** OLED(SH1106)  SPI)OLEDモジュール利用有無(まだ不完全) **********************
+#define USE_OLED     1 // 0:利用しない 1:利用する (デフォルト:0)
+                       // 利用時は USE_NTSC を0にすること
+ #define OLED_SCMODE 1 // スクリーンモード(1～6 デオフォルト:1 )
+ #define OLED_RTMODE 0 // 画面の向き (0～3: デフォルト: 3)
+  
 // ** NTSCビデオ出力利用有無 *************************************************
-#define USE_NTSC  1  // 0:利用しない 1:利用する (デフォルト:1)
+#define USE_NTSC  0  // 0:利用しない 1:利用する (デフォルト:1)
 
 // ** デフォルトスクリーンモードの指定 0:ターミナルモード 1:NTSCビデオ 224x216
-#define USE_SCREEN_MODE 1  // USE_NTSC=0の場合、0を指定すること (デフォルト:1)
+#define USE_SCREEN_MODE 1  // USE_TFT=0 かつ USE_NTSC=0の場合、0を指定すること (デフォルト:1)
 
 // 設定の矛盾補正
-#if USE_TFT  == 1
+#if USE_TFT  == 1 || USE_OLED
  #define USE_NTSC 0
 #endif
-#if USE_NTSC == 0 && USE_SCREEN_MODE == 1
+#if USE_NTSC == 0 && USE_TFT == 0 && USE_OLED == 0
  #define USE_SCREEN_MODE 0
 #endif
 
@@ -55,7 +62,6 @@
 
 // ** SDカードの利用      0:利用しない 1:利用する *****************************
 #define USE_SD_CARD    1 // (デフォルト:1)
-#define USE_SD_CARD    1 // (デフォルト:1)
 #if USE_SD_CARD == 1 && USE_INNERRTC == 0
  #define USE_INNERRTC 1
 #endif
@@ -65,22 +71,22 @@
 
 #if FONTSELECT == 0
   // 6x8 TVoutフォント
-  #define TV_DISPLAY_FONT font6x8
+  #define DEVICE_FONT font6x8
   #include <font6x8.h>
 
 #elif FONTSELECT == 1
   // 6x8ドット オリジナルフォント(デフォルト)
-  #define TV_DISPLAY_FONT font6x8tt
+  #define DEVICE_FONT font6x8tt
   #include <font6x8tt.h>
 
 #elif FONTSELECT == 2
   // 8x8 TVoutフォント
-  #define TV_DISPLAY_FONT font8x8
+  #define DEVICE_FONT font8x8
   #include <font8x8.h>
 
 #elif FONTSELECT == 3
   // 8x8 IchigoJamフォント(オプション機能 要フォント)
-  #define TV_DISPLAY_FONT ichigoFont8x8 
+  #define DEVICE_FONT ichigoFont8x8 
   #include <ichigoFont8x8.h>
 #endif
 

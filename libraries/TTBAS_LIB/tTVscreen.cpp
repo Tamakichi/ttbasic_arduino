@@ -20,37 +20,27 @@
 //  修正日 2017/06/18, Insert_char()のメモリ領域外アクセスの不具合対応
 //  修正日 2017/06/22, シリアル上でBSキー、CTRL-Lが利用可能対応
 //  修正日 2017/08/19, tvutl,tGraphicDevの関数群の移行
+//  修正日 2017/08/24, tone(),notone()の削除,フォント指定方法の仕様変更（フォント汎用利用のため)
 //
 
 #include <string.h>
 #include <TTVout.h>	
 #include "tTVscreen.h"
-extern uint8_t* ttbasic_font;
-extern uint8_t* tvfont;     // 利用フォント	
+
 extern uint16_t f_width;    // フォント幅(ドット)
 extern uint16_t f_height;   // フォント高さ(ドット)
 #define NTSC_VIDEO_SPI 2
 
-uint8_t* tv_getFontAdr() ;
-void tv_fontInit();
 void    endPS2();
-
-	
-void    tv_tone(int16_t freq, int16_t tm);
-void    tv_notone();
-
-
-void setupPS2(uint8_t kb_type);
+void    setupPS2(uint8_t kb_type);
 uint8_t ps2read();
 
 int16_t getPrevLineNo(int16_t lineno);
 int16_t getNextLineNo(int16_t lineno);
-char* getLineStr(int16_t lineno);
+char*   getLineStr(int16_t lineno);
 int16_t getTopLineNum();
 int16_t getBottomLineNum();
 
-#define VPEEK(X,Y)      (screen[width*(Y)+(X)])
-#define VPOKE(X,Y,C)    (screen[width*(Y)+(X)]=C)
 
 //******************************************************************************
 // tvutilライブラリの統合
@@ -60,7 +50,7 @@ int16_t getBottomLineNum();
 // NTSC表示の初期設定
 // 
 void tTVscreen::tv_init(int16_t ajst, uint8_t* extmem, uint8_t vmode) { 
-  tv_fontInit();
+  //tv_fontInit();
   this->TV.TNTSC->adjust(ajst);
   this->TV.begin(vmode, NTSC_VIDEO_SPI, extmem); // SPI2を利用
 	
@@ -68,7 +58,7 @@ void tTVscreen::tv_init(int16_t ajst, uint8_t* extmem, uint8_t vmode) {
   // SPI2 SCK2(PB13ピン)が起動直後にHIGHになっている修正
    pinMode(PB13, INPUT);  
 #endif
-  this->TV.select_font(tvfont);                 // フォントの設定
+  this->TV.select_font(this->font);            // フォントの設定
   this->g_width  = this->TV.TNTSC->width();     // 横ドット数
   this->g_height = this->TV.TNTSC->height();    // 縦ドット数
 	
@@ -81,7 +71,7 @@ void tTVscreen::tv_init(int16_t ajst, uint8_t* extmem, uint8_t vmode) {
 
 
 // GVRAMサイズ取得
-uint16_t tTVscreen::tv_getGVRAMSize() {
+__attribute__((always_inline)) uint16_t tTVscreen::getGRAMsize() {
   return (this->g_width>>3)*this->g_height;
 }
 
@@ -97,7 +87,7 @@ uint8_t tTVscreen::drawCurs(uint8_t x, uint8_t y) {
 //
 // 文字の表示
 //
-void tTVscreen::write(uint8_t x, uint8_t y, uint8_t c) {
+__attribute__((always_inline)) void tTVscreen::write(uint8_t x, uint8_t y, uint8_t c) {
   this->TV.print_char(x * f_width, y * f_height ,c);  
 }
 
@@ -154,46 +144,40 @@ void tTVscreen::ginit() {
 }
 
 // フォントアドレスの参照
-uint8_t *tTVscreen::getfontadr() {
-	return tv_getFontAdr()+3; 
+__attribute__((always_inline)) uint8_t *tTVscreen::getfontadr() {
+	return font+3; 
 }  
 
 // グラフィク表示用メモリアドレス参照
-uint8_t* tTVscreen::getGRAM() {
+__attribute__((always_inline)) uint8_t* tTVscreen::getGRAM() {
   return this->vram;	
 }
-
-// グラフィク表示用メモリサイズ取得
-int16_t tTVscreen::getGRAMsize() {
-  return this->tv_getGVRAMSize();
-}
-
 	
 // ドット描画
-void tTVscreen::pset(int16_t x, int16_t y, uint8_t c) {
+__attribute__((always_inline)) void tTVscreen::pset(int16_t x, int16_t y, uint16_t c) {
   this->TV.set_pixel(x,y,c);	
 }
 
 // 線の描画
-void tTVscreen::line(int16_t x1, int16_t y1, int16_t x2, int16_t y2, uint8_t c) {
+void tTVscreen::line(int16_t x1, int16_t y1, int16_t x2, int16_t y2, uint16_t c) {
  this->TV.draw_line(x1,y1,x2,y2,c);	
 }
 
 // 円の描画
-void tTVscreen::circle(int16_t x, int16_t y, int16_t r, uint8_t c, int8_t f) {
+void tTVscreen::circle(int16_t x, int16_t y, int16_t r, uint16_t c, int8_t f) {
   if (f==0) f=-1;
   this->TV.draw_circle(x, y, r, c, f);	
 }
 
 // 四角の描画
-void tTVscreen::rect(int16_t x, int16_t y, int16_t w, int16_t h, uint8_t c, int8_t f) {
+void tTVscreen::rect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t c, int8_t f) {
   if (f==0) f=-1;
   this->TV.draw_rect(x, y, w, h, c, f);
 	
 }
 
 // ビットマップの描画
-void tTVscreen::bitmap(int16_t x, int16_t y, uint8_t* adr, uint16_t index, uint16_t w, uint16_t h, uint16_t d) {
+void tTVscreen::bitmap(int16_t x, int16_t y, uint8_t* adr, uint16_t index, uint16_t w, uint16_t h, uint16_t d, uint8_t rgb) {
   this->tv_bitmap(x, y, adr, index, w, h, d);
 }
 
@@ -287,22 +271,9 @@ void tTVscreen::gputch(uint8_t c) {
 //****************************************************************************
 // 差分実装
 //***************************************************************************
-        
-// カーソルの移動
-// ※pos_x,pos_yは本関数のみでのみ変更可能
-void tTVscreen::MOVE(uint8_t y, uint8_t x) {
-  uint8_t c;
-  if (flgCur) {
-    c = VPEEK(pos_x,pos_y);
-    this->write(pos_x, pos_y, c?c:32);  
-    this->drawCurs(x, y);  
-  }
-  pos_x = x;
-  pos_y = y;
-}
 
 // 文字の表示
-void tTVscreen::WRITE(uint8_t x, uint8_t y, uint8_t c) {
+__attribute__((always_inline)) void tTVscreen::WRITE(uint8_t x, uint8_t y, uint8_t c) {
    this->write(x, y, c); // 画面表示
 }
 
@@ -318,13 +289,13 @@ void tTVscreen::CLEAR_LINE(uint8_t l) {
 
 // スクロールアップ
 void tTVscreen::SCROLL_UP() {
-  this->TV.shift(*(tvfont+1), UP);
+  this->TV.shift(*(font+1), UP);
   this->clerLine(this->c_height-1);
 }
 
 // スクロールダウン
 void tTVscreen::SCROLL_DOWN() {
-  uint8_t h = *(tvfont+1);
+  uint8_t h = *(font+1);
   this->TV.shift(h, DOWN);
   h = this->g_height % h;
   if (h) {
@@ -346,7 +317,6 @@ void tTVscreen::INSLINE(uint8_t l) {
     memmove(dst, src, sz);
     this->clerLine(l);
   }
-
 }
 
 //****************************************************************************
@@ -359,17 +329,18 @@ void tTVscreen::INSLINE(uint8_t l) {
 //  l  : 1行の最大長
 // 戻り値
 //  なし
-void tTVscreen::init(uint16_t ln, uint8_t kbd_type, int16_t NTSCajst, uint8_t* extmem, uint8_t vmode) {
+void tTVscreen::init(const uint8_t* fnt, uint16_t ln, uint8_t kbd_type, int16_t NTSCajst, uint8_t* extmem, uint8_t vmode) {
   
+	this->font = (uint8_t*)fnt;
+
   // ビデオ出力設定
   this->serialMode = 0;
   this->tv_init(NTSCajst, extmem, vmode);
   if (extmem == NULL) {
     tscreenBase::init(this->c_width,this->c_height, ln);
   } else {
-    tscreenBase::init(this->c_width,this->c_height, ln, extmem + this->tv_getGVRAMSize());
+    tscreenBase::init(this->c_width,this->c_height, ln, extmem + this->getGRAMsize());
   }	
-  //this->ginit();
 
 #if PS2DEV == 1
   setupPS2(kbd_type);
@@ -389,33 +360,6 @@ void tTVscreen::end() {
   tscreenBase::end();
 }
 
-void tTVscreen::reset_kbd(uint8_t kbd_type) {
-  endPS2();
-  setupPS2(kbd_type);
-}
-
-// 文字の出力
-void tTVscreen::putch(uint8_t c) {
-  tscreenBase::putch(c);
- if(this->serialMode == 0) {
-    Serial.write(c);       // シリアル出力
-  } else if (this->serialMode == 1) {
-    Serial1.write(c);     // シリアル出力  
-  }
-}
-
-// 改行
-void tTVscreen::newLine() {  
-  tscreenBase::newLine();
-  if (this->serialMode == 0) {
-    Serial.write(0x0d);
-    Serial.write(0x0a);
-  } else if (this->serialMode == 1) {
-    Serial1.write(0x0d);
-    Serial1.write(0x0a);
-  }  
-}
-
 // 行のリフレッシュ表示
 void tTVscreen::refresh_line(uint16_t l) {
   CLEAR_LINE(l);
@@ -423,195 +367,6 @@ void tTVscreen::refresh_line(uint16_t l) {
 //    if( IS_PRINT( VPEEK(j,l) )) { 
       WRITE(j,l,VPEEK(j,l));
 //    }
-  }
-}
-
-	
-// キー入力チェック&キーの取得
-uint8_t tTVscreen::isKeyIn() {
-  if(this->serialMode == 0) {
-    if (Serial.available())
-      return Serial.read();
-  } else if (serialMode == 1) {
-    if (Serial1.available())
-      return Serial1.read();
-  }
-#if PS2DEV == 1
- return ps2read();
-#endif
-}
-
-// 文字入力
-uint8_t tTVscreen::get_ch() {
-  char c;
-  while(1) {
-    if(serialMode == 0) {
-      if (Serial.available()) {
-        c = Serial.read();
-        dev = 1;
-        break;
-      }
-    } else if (serialMode == 1) {
-      if (Serial1.available()) {
-        c = Serial1.read();
-        dev = 2;
-        break;
-      }
-    }
-#if PS2DEV == 1
-    c = ps2read();
-    if (c) {
-      dev = 0;
-      break;
-    }
-#endif
-  }
-  return c;  
-}
-
-// カーソルの表示/非表示
-// flg: カーソル非表示 0、表示 1、強調表示 2
-void tTVscreen::show_curs(uint8_t flg) {
-    flgCur = flg;
-    if(!flgCur)
-      this->draw_cls_curs();
-    
-}
-
-// カーソルの消去
-void tTVscreen::draw_cls_curs() {
-  uint8_t c = VPEEK(pos_x,pos_y);
-  this->write(pos_x, pos_y, c?c:32);
-}
-
-// スクリーン編集
-uint8_t tTVscreen::edit() {
-  uint8_t ch;  // 入力文字
-
-  do {
-    //MOVE(pos_y, pos_x);
-    ch = get_ch ();
-    if (dev != 1 || allowCtrl) { // USB-Serial(dev=1)は入力コードのキー解釈を行わない
-      switch(ch) {
-        case KEY_CR:         // [Enter]キー
-          return this->enter_text();
-          break;
-  
-        case SC_KEY_CTRL_L:  // [CTRL+L] 画面クリア
-          cls();
-          locate(0,0);
-          Serial_Ctrl(SC_KEY_CTRL_L);
-          break;
-   
-        case KEY_HOME:      // [HOMEキー] 行先頭移動
-          locate(0, pos_y);
-          break;
-          
-        case KEY_NPAGE:     // [PageDown] 表示プログラム最終行に移動
-          if (pos_x == 0 && pos_y == height-1) {
-            this->edit_scrollUp();
-          } else {
-            this->moveBottom();
-          }
-          break;
-          
-        case KEY_PPAGE:     // [PageUP] 画面(0,0)に移動
-          if (pos_x == 0 && pos_y == 0) {
-            this->edit_scrollDown();
-          } else {
-            locate(0, 0);
-          }  
-          break;
-  
-        case SC_KEY_CTRL_R: // [CTRL_R(F5)] 画面更新
-          this->refresh();  break;
-  
-        case KEY_END:       // [ENDキー] 行の右端移動
-           this->moveLineEnd();
-           break;
-  
-        case KEY_IC:         // [Insert]キー
-          flgIns = !flgIns;
-          break;        
-  
-        case KEY_BACKSPACE:  // [BS]キー
-            this->movePosPrevChar();
-            this->delete_char();
-           Serial_Ctrl(KEY_BACKSPACE);
-          break;        
-  
-        case KEY_DC:         // [Del]キー
-        case SC_KEY_CTRL_X:
-          this->delete_char();
-          break;        
-        
-        case KEY_RIGHT:      // [→]キー
-          this->movePosNextChar();
-          break;
-  
-        case KEY_LEFT:       // [←]キー
-          this->movePosPrevChar();
-          break;
-  
-        case KEY_DOWN:       // [↓]キー
-          this->movePosNextLineChar();
-          break;
-        
-        case KEY_UP:         // [↑]キー
-          this->movePosPrevLineChar();
-          break;
-  
-        case SC_KEY_CTRL_N:  // 行挿入 
-          this->Insert_newLine(pos_y);       
-          break;
-  
-        case SC_KEY_CTRL_D:  // 行削除
-          this->clerLine(pos_y);
-          break;
-        
-        default:             // その他
-        
-        if (IS_PRINT(ch)) {
-          this->Insert_char(ch);
-        }        
-        break;
-      }
-    } else {
-      // PS/2キーボード以外からの入力
-      if (ch == KEY_CR) {
-        return this->enter_text(); 
-      } else {
-        this->Insert_char(ch);      
-      }
-    }
-  } while(1);
-}
-
-// シリアルポートスクリーン制御出力
-void tTVscreen::Serial_Ctrl(int16_t ch) {
-  char* s=NULL;
-  switch(ch) {
-    case KEY_BACKSPACE:
-     s = "\x08\x1b[P";
-     break;
-    case SC_KEY_CTRL_L:
-     s = "\x1b[2J\x1b[H";
-     break;
-  }
-  if(s) {
-    if(this->serialMode == 0) {
-      // Serial.print(s);     // USBシリアル出力
-      while(*s) {
-        Serial.write(*s);
-        s++;
-      }  
-    } else if (this->serialMode == 1) {
-      //Serial1.print(s);     // シリアル出力  
-      while(*s) {
-        Serial1.write(*s);
-        s++;
-      }  
-    }  
   }
 }
 
@@ -655,17 +410,6 @@ void tTVscreen::cscroll(int16_t x, int16_t y, int16_t w, int16_t h, uint8_t d) {
     }
 }
 
-void tTVscreen::tone(int16_t freq, int16_t tm) {
-  ::tv_tone(freq, tm);  
-}
-
-void tTVscreen::notone() {
-  ::tv_notone();    
-}
-
 void tTVscreen::adjustNTSC(int16_t ajst) {
   this->TV.TNTSC->adjust(ajst);  	
 }
-
-
-

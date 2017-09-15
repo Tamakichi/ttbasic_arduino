@@ -146,8 +146,8 @@ void tscreenBase::delete_char() {
 
 // 文字の出力
 void tscreenBase::putch(uint8_t c) {
- VPOKE(pos_x, pos_y, c);
- WRITE(pos_x, pos_y, c);
+ VPOKE(pos_x, pos_y, c); // VRAMへの書込み
+ WRITE(pos_x, pos_y, c); // スクリーンへの書込み
  movePosNextNewChar();
 }
 
@@ -486,8 +486,10 @@ uint8_t tscreenBase::edit() {
   do {
     //MOVE(pos_y, pos_x);
     ch = get_ch ();
+    show_curs(false);
     switch(ch) {
       case KEY_CR:         // [Enter]キー
+        show_curs(true);
         return enter_text();
         break;
 
@@ -573,5 +575,7 @@ uint8_t tscreenBase::edit() {
       }  
       break;
     }
+    show_curs(true);
   } while(1);
+   show_curs(true);
 }

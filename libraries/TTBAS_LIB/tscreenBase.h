@@ -1,7 +1,7 @@
 // 
 // スクリーン制御基本クラス ヘッダーファイル
 // 作成日 2017/06/27 by たま吉さん
-//
+// 修正日 2017/09/15 IsCurs()  カーソル表示有無の取得の追加
 
 #ifndef __tscreenBase_h__
 #define __tscreenBase_h__
@@ -57,7 +57,7 @@ class tscreenBase : public tSerialDev {
 	
 protected:
     virtual void INIT_DEV() = 0;                              // デバイスの初期化
-	virtual void END_DEV() {};                                // デバイスの終了
+	  virtual void END_DEV() {};                                // デバイスの終了
     virtual void MOVE(uint8_t y, uint8_t x) = 0;              // キャラクタカーソル移動
     virtual void WRITE(uint8_t x, uint8_t y, uint8_t c) = 0;  // 文字の表示
     virtual void CLEAR() = 0;                                 // 画面全消去
@@ -67,22 +67,24 @@ protected:
     virtual void INSLINE(uint8_t l) = 0;                      // 指定行に1行挿入(下スクロール)
     
   public:
-	virtual void beep() {};                              // BEEP音の発生
+	  virtual void beep() {};                              // BEEP音の発生
     virtual void show_curs(uint8_t flg);                 // カーソルの表示/非表示
     virtual void draw_cls_curs();                        // カーソルの消去
+    inline  uint8_t IsCurs() { return flgCur; };         // カーソル表示有無の取得
     virtual void putch(uint8_t c);                       // 文字の出力
     virtual uint8_t get_ch();                            // 文字の取得
     virtual uint8_t isKeyIn();                           // キー入力チェック
-	virtual void setColor(uint16_t fc, uint16_t bc) {};  // 文字色指定
-	virtual void setAttr(uint16_t attr) {};              // 文字属性
-	virtual void set_allowCtrl(uint8_t flg) {};          // シリアルからの入力制御許可設定
+	  virtual void setColor(uint16_t fc, uint16_t bc) {};  // 文字色指定
+	  virtual void setAttr(uint16_t attr) {};              // 文字属性
+	  virtual void set_allowCtrl(uint8_t flg) {};          // シリアルからの入力制御許可設定
 
 	//virtual int16_t peek_ch();                           // キー入力チェック(文字参照)
     virtual inline uint8_t IS_PRINT(uint8_t ch) {
-      return (((ch) >= 32 && (ch) < 0x7F) || ((ch) >= 0xA0)); 
+      //return (((ch) >= 32 && (ch) < 0x7F) || ((ch) >= 0xA0)); 
+     return ch;
     };
     void init(uint16_t w=0,uint16_t h=0,uint16_t ln=128, uint8_t* extmem=NULL); // スクリーンの初期設定
-	virtual void end();                               // スクリーン利用終了
+	  virtual void end();                               // スクリーン利用終了
     void clerLine(uint16_t l);                        // 1行分クリア
     void cls();                                       // スクリーンのクリア
     void refresh();                                   // スクリーンリフレッシュ表示

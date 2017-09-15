@@ -427,18 +427,23 @@ uint8_t sdfiles::loadBitmap(char* fname, uint8_t* ptr, int16_t x, int16_t y, int
 // ビットマップファイルのグラフィックVRAMへのロード
 //  fname : ターゲットファイル名
 //  ptr   : ロードデータの格納アドレス(VRAM)
+//  x     : ロード先 グラフィック座標 x
+//  y     : ロード先 グラフィック座標 y
 //  bw    : 次のライン先頭のオフセットバイト数
 //  bx    : ビットマップ画像の切り出し座標 x
 //  by    : ビットマップ画像の切り出し座標 y
 //  w     : ビットマップ画像の切り出し幅
 //  h     : ビットマップ画像の切り出し高さ
 //  mode  : 色モード 0:通常 1：反転
+//  vmode : VRAMモード 0:通常 1:モノクログラフィック液晶タイプ
 //[戻り値]
 //  正常終了             : 0 
 //  SDカード利用失敗     : SD_ERR_INIT
 //  ファイルオープン失敗 : SD_ERR_OPEN_FILE
 //  ファイル読み込み失敗 : SD_ERR_READ_FILE
-uint8_t sdfiles::loadBitmapToGVRAM(char* fname, uint8_t* ptr,int16_t bw, int16_t bx, int16_t by, int16_t w, int16_t h,uint8_t mode) {
+uint8_t sdfiles::loadBitmapToGVRAM(char* fname, uint8_t* ptr, int16_t x, int16_t y, 
+                                   int16_t bw, int16_t bx, int16_t by, int16_t w, int16_t h,
+                                   uint8_t mode, uint8_t vmode) {
   uint8_t rc =1;
   
  if (SD_BEGIN() == false) 
@@ -446,7 +451,8 @@ uint8_t sdfiles::loadBitmapToGVRAM(char* fname, uint8_t* ptr,int16_t bw, int16_t
   sdbitmap bitmap;
   bitmap.setFilename(fname);
   if (!bitmap.open()) {
-    if (bitmap.getBitmap(ptr, bx, by, w,h, mode, (uint16_t)bw))
+//    if (bitmap.getBitmap(ptr, bx, by, w,h, mode, (uint16_t)bw))
+    if (bitmap.getBitmap(ptr, x, y, bx, by, w,h, mode, (uint16_t)bw, vmode))
       rc = SD_ERR_READ_FILE;
     else 
       rc = 0;

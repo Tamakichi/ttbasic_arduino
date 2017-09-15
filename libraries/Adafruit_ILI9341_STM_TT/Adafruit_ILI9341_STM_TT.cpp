@@ -42,11 +42,6 @@ Adafruit_ILI9341_STM_TT::Adafruit_ILI9341_STM_TT(int8_t cs, int8_t dc, int8_t rs
   _mosi  = _sclk = 0;
 #if defined (__STM32F1__) // 2017/8/12 Tamakichi
   spidev =_spidev;
-  if (spidev == 2)
-	pSPI = new SPIClass(2);
-  else
-	pSPI = &SPI;
-	
 #endif
 
 }
@@ -116,6 +111,7 @@ void Adafruit_ILI9341_STM_TT::writedata(uint8_t c) {
 // If the SPI library has transaction support, these functions
 // establish settings and protect from interference from other
 // libraries.  Otherwise, they simply do nothing.
+
 #ifdef SPI_HAS_TRANSACTION
 static inline void spi_begin(void) __attribute__((always_inline));
 static inline void spi_begin(void) {
@@ -127,7 +123,11 @@ static inline void spi_begin(void) {
 }
 static inline void spi_end(void) __attribute__((always_inline));
 static inline void spi_end(void) {
+#if defined (__STM32F1__)
+  pSPI->endTransaction();
+#else
   SPI.endTransaction();
+#endif
 }
 #else
 #define spi_begin()
@@ -194,7 +194,11 @@ void Adafruit_ILI9341_STM_TT::begin(void) {
     SPI.setBitOrder(MSBFIRST);
     SPI.setDataMode(SPI_MODE0);
 #elif defined (__STM32F1__)
-    pSPI->begin();
+    if (spidev == 2)
+   	  pSPI = new SPIClass(2);
+    else
+  	  pSPI = &SPI;
+	  pSPI->begin();
     pSPI->setClockDivider(SPI_CLOCK_DIV2);
     pSPI->setBitOrder(MSBFIRST);
     pSPI->setDataMode(SPI_MODE0);
@@ -354,6 +358,11 @@ void Adafruit_ILI9341_STM_TT::begin(void) {
 
 }
 
+void Adafruit_ILI9341_STM_TT::end(void) {
+  pSPI->end();
+  delete pSPI;
+}
+ 
 
 void Adafruit_ILI9341_STM_TT::setAddrWindow(uint16_t x0, uint16_t y0, uint16_t x1,
                                         uint16_t y1) {
@@ -480,7 +489,7 @@ void Adafruit_ILI9341_STM_TT::drawFastHLine(int16_t x, int16_t y, int16_t w,
   *csport &= ~cspinmask;
 
 #if defined (__STM32F1__)
-  SPI.setDataSize (SPI_CR1_DFF); // Set spi 16bit mode
+  pSPI->setDataSize (SPI_CR1_DFF); // Set spi 16bit mode
   lineBuffer[0] = color;
   pSPI->dmaSend(lineBuffer, w, 0);
   pSPI->setDataSize (0);

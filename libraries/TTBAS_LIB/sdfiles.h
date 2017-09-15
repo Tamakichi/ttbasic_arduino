@@ -52,6 +52,8 @@ class sdfiles {
     
   // ビットマップファイルのロード
   uint8_t loadBitmap(char* fname, uint8_t* ptr, int16_t x, int16_t y, int16_t w,int16_t  h, uint8_t mode=0);
-  uint8_t loadBitmapToGVRAM(char* fname, uint8_t* ptr, int16 bw, int16_t bx, int16_t by, int16_t w, int16_t h,uint8_t mode=0);
+  uint8_t loadBitmapToGVRAM(char* fname, uint8_t* ptr, int16_t x, int16_t y,
+                            int16 bw, int16_t bx, int16_t by, int16_t w, int16_t h, 
+                            uint8_t mode=0, uint8_t vmode=0);
 };
 #endif
