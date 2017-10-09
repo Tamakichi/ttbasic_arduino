@@ -7,11 +7,14 @@
 #ifndef __tOLEDScreen_h__
 #define __tOLEDScreen_h__
 
-//#include <Arduino.h>
+#define OLED_DEV 0 // 0:SH1106 1:SSD1306/SSD1309
 #include "tGraphicScreen.h"
-//#include <SPI.h>
-//#include <Adafruit_GFX_AS.h>   
-#include <Adafruit_SH1106_STM32.h>
+
+#if OLED_DEV == 0
+  #include <Adafruit_SH1106_STM32.h>
+#else
+  #include <Adafruit_SSD1306_STM32_TT.h>
+#endif
 
 // PS/2キーボードの利用 0:利用しない 1:利用する
 #define PS2DEV     1  
@@ -19,7 +22,12 @@
 
 class tOLEDScreen :public tGraphicScreen {
  private:
+#if OLED_DEV == 0
   Adafruit_SH1106* oled;
+#else
+  Adafruit_SSD1306* oled;
+#endif
+  
   uint16_t f_width;    // フォント幅(ドット)
   uint16_t f_height;   // フォント高さ(ドット)
   uint16_t fgcolor;
@@ -47,7 +55,7 @@ class tOLEDScreen :public tGraphicScreen {
 
   
  public:
-    void init(const uint8_t* fnt, uint16_t ln=256, uint8_t kbd_type=false, uint8_t* extmem=NULL, uint8_t vmode=TV_FONT_EX, uint8_t rt=3);
+    void init(const uint8_t* fnt, uint16_t ln=256, uint8_t kbd_type=false, uint8_t* extmem=NULL, uint8_t vmode=TV_FONT_EX, uint8_t rt=3, uint8_t ifmode=0);
 
   void setColor(uint16_t fc, uint16_t bc);     // 文字色指定
     void setAttr(uint16_t attr);               // 文字属性
@@ -66,12 +74,15 @@ class tOLEDScreen :public tGraphicScreen {
     void     circle(int16_t x, int16_t y, int16_t r, uint16_t c, int8_t f);
     void     rect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t c, int8_t f);
     void     bitmap(int16_t x, int16_t y, uint8_t* adr, uint16_t index, uint16_t w, uint16_t h, uint16_t d, uint8_t rgb=0);
-    void     gscroll(int16_t x, int16_t y, int16_t w, int16_t h, uint8_t mode){};
-    int16_t  gpeek(int16_t x, int16_t y){};
-    int16_t  ginp(int16_t x, int16_t y, int16_t w, int16_t h, uint8_t c){};
+    int16_t  gpeek(int16_t x, int16_t y);
+    int16_t  ginp(int16_t x, int16_t y, int16_t w, int16_t h, uint8_t c);
     void     set_gcursor(uint16_t, uint16_t);
     void     gputch(uint8_t c);
     uint8_t  bmpDraw(char *filename, uint8_t x, uint16_t y, uint16_t bx=0, uint16_t by=0, uint16_t bw=0, uint16_t bh=0);
+    
+    void     cscroll(int16_t x, int16_t y, int16_t w, int16_t h, uint8_t d);
+    void     gscroll(int16_t x, int16_t y, int16_t w, int16_t h, uint8_t mode);
+
 };
 
 #endif

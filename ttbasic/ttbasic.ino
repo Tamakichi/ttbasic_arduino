@@ -10,8 +10,9 @@ void basic();
 uint8_t serialMode;
 
 void setup(void){
-  Serial.begin(115200);
+  //Serial.begin(115200);
   Serial1.begin(GPIO_S1_BAUD);
+  
 
   // USBのジッター低減
 /*

@@ -183,7 +183,7 @@ void tTVscreen::bitmap(int16_t x, int16_t y, uint8_t* adr, uint16_t index, uint1
 
 // グラフィックスクロール
 void tTVscreen::gscroll(int16_t x, int16_t y, int16_t w, int16_t h, uint8_t mode) {
-  uint8_t* bmp = this->vram+(this->g_width>>3)*y; // フレームバッファ参照位置 
+  uint8_t* bmp = this->getGRAM()+(this->g_width>>3)*y; // フレームバッファ参照位置 
   uint16_t bl = (this->g_width+7)>>3;             // 横バイト数
   uint16_t sl = (w+7)>>3;                         // 横スクロールバイト数
   uint16_t xl = (x+7)>>3;                         // 横スクロール開始オフセット(バイト)
@@ -370,46 +370,7 @@ void tTVscreen::refresh_line(uint16_t l) {
   }
 }
 
-
-// キャラクタ画面スクロール
-void tTVscreen::cscroll(int16_t x, int16_t y, int16_t w, int16_t h, uint8_t d) {
-  switch(d) {
-    case 0: // 上
-      for (uint16_t i= 0; i < h-1; i++) {
-        memcpy(&VPEEK(x,y+i), &VPEEK(x,y+i+1), w);
-      }
-      memset(&VPEEK(x, y + h - 1), 0, w);
-      break;            
-
-    case 1: // 下
-      for (uint16_t i= 0; i < h-1; i++) {
-        memcpy(&VPEEK(x,y + h-1-i), &VPEEK(x,y+h-1-i-1), w);
-      }
-      memset(&VPEEK(x, y), 0, w);
-      break;            
-
-    case 2: // 右
-      for (uint16_t i=0; i < h; i++) {
-        memmove(&VPEEK(x+1, y+i) ,&VPEEK(x,y+i), w-1);
-        VPOKE(x,y+i,0);
-      }
-      break;
-      
-    case 3: // 左
-      for (uint16_t i=0; i < h; i++) {
-        memmove(&VPEEK(x,y+i) ,&VPEEK(x+1,y+i), w-1);
-        VPOKE(x+w-1,y+i,0);
-      }
-      break;
-  }
-  uint8_t c;
-  for (uint8_t i = 0; i < h; i++) 
-    for (uint8_t j=0; j < w; j++) {
-      c = VPEEK(x+j,y+i);
-      this->write(x+j,y+i, c?c:32);
-    }
-}
-
 void tTVscreen::adjustNTSC(int16_t ajst) {
   this->TV.TNTSC->adjust(ajst);  	
 }
+

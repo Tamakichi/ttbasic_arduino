@@ -7,30 +7,9 @@
 #include <string.h>
 #include "tOLEDScreen.h"
 
-#include <SD.h>
-#define SD_CS       (PA4)   // SDカードモジュールCS
-#define BUFFPIXEL 20
-#define SD_BEGIN() SD.begin(F_CPU/4,SD_CS)
-
-//#define TFT_FONT_MODE 0 // フォント利用モード 0:TVFONT 1以上 Adafruit_GFX_ASフォント
-//#define TV_FONT_EX 1    // フォント倍率
-
-#define SD_ERR_INIT       1    // SDカード初期化失敗
-#define SD_ERR_OPEN_FILE  2    // ファイルオープン失敗
-#define SD_ERR_READ_FILE  3    // ファイル読込失敗
-#define SD_ERR_NOT_FILE   4    // ファイルでない(ディレクトリ)
-#define SD_ERR_WRITE_FILE 5    //  ファイル書込み失敗
-
 #define OLED_CS      PB11
 #define OLED_RST     -1
 #define OLED_DC      PB12
-#define OLED_SCL     PB6
-#define OLED_SDA     PB7
-
-#define BOT_FIXED_AREA 0 // Number of lines in bottom fixed area (lines counted from bottom of screen)
-#define TOP_FIXED_AREA 0 // Number of lines in top fixed area (lines counted from top of screen)
-#define ILI9341_VSCRDEF  0x33
-#define ILI9341_VSCRSADD 0x37
 
 void setupPS2(uint8_t kb_type);
 uint8_t ps2read();
@@ -39,7 +18,13 @@ void    endPS2();
 #define OLED_BLACK  0
 #define OLED_WHITE  1
 
-static const uint16_t tbl_color[]  = { OLED_BLACK, OLED_WHITE };
+#define OLED_WIDTH   128
+#define OLED_HEIGHT   64
+
+
+#ifndef swap
+#define swap(a, b) { int16_t t = a; a = b; b = t; }
+#endif
 
 // GVRAMサイズ取得
 __attribute__((always_inline)) uint16_t tOLEDScreen::getGRAMsize() {
@@ -55,17 +40,35 @@ void tOLEDScreen::update() {
   this->oled->display();
 }  
 
-// 初期化
-void tOLEDScreen::init(const uint8_t* fnt, uint16_t ln, uint8_t kbd_type, uint8_t* extmem, uint8_t vmode, uint8_t rt) {
+//
+// 初期化 - OLEDディスプレイの初期化を行う
+//  fnt      : 表示フォント指定
+//  ln       : 行バッファサイズ
+//  kbd_type : キーボードタイプ(0:JP 1:US)
+//  extmem   : VRAM領域指定(0:初期化時に動的確保 0以外:指定値をアドレス先頭とする)
+//  vmode    : スクリーンモード(1～3)
+//  rt       : 画面回転(0～3)
+//  ifmode   : インタフェース(0:I2C 1:SPI)
+//
+void tOLEDScreen::init(const uint8_t* fnt, uint16_t ln, uint8_t kbd_type, uint8_t* extmem, uint8_t vmode, uint8_t rt,uint8_t ifmode) {
   this->font = (uint8_t*)fnt;
-/*
-  this->oled = new Adafruit_SH1106(OLED_DC, OLED_RST, OLED_CS, 2); // Use hardware SPI2
-  this->oled->begin();
-*/
-
-  this->oled = new Adafruit_SH1106( OLED_RST); // Use hardware I2C1
-  this->oled->begin(SH1106_SWITCHCAPVCC, SH1106_I2C_ADDRESS); 
-
+  if (ifmode == 0) {
+#if OLED_DEV == 0
+    this->oled = new Adafruit_SH1106(OLED_RST); // Use hardware I2C1
+    this->oled->begin(SH1106_SWITCHCAPVCC, SH1106_I2C_ADDRESS); 
+#else
+    this->oled = new Adafruit_SSD1306(OLED_RST); // Use hardware I2C1
+    this->oled->begin(SSD1306_SWITCHCAPVCC, SSD1306_I2C_ADDRESS); 
+#endif    
+  } else {
+#if OLED_DEV == 0
+    this->oled = new Adafruit_SH1106(OLED_DC, OLED_RST, OLED_CS, 2); // Use hardware SPI2
+    this->oled->begin();
+#else
+    this->oled = new Adafruit_SSD1306(OLED_DC, OLED_RST, OLED_CS, 2); // Use hardware SPI2
+    this->oled->begin();
+#endif    
+  }
 
   setScreen(vmode, rt); // スクリーンモード,画面回転指定
   if (extmem == NULL) {
@@ -88,7 +91,6 @@ void tOLEDScreen::INIT_DEV() {
 
 }
 
-
 // スクリーンモード設定
 void tOLEDScreen::setScreen(uint8_t mode, uint8_t rt) {
   this->oled->setRotation(rt);
@@ -110,32 +112,21 @@ void tOLEDScreen::setScreen(uint8_t mode, uint8_t rt) {
 uint8_t tOLEDScreen::drawCurs(uint8_t x, uint8_t y) {
   uint8_t c;
   c = VPEEK(x, y);
-#if TFT_FONT_MODE == 0
   this->oled->fillRect(x*f_width,y*f_height,f_width,f_height,fgcolor);
- if (fontEx == 1)
+  if (fontEx == 1)
     this->oled->drawBitmap(x*f_width,y*f_height,font+3+((uint16_t)c)*8,f_width,f_height, bgcolor);
- else
-	drawBitmap_x2(x*f_width,y*f_height,font+3+((uint16_t)c)*8,f_width/fontEx, f_height/fontEx, bgcolor, fontEx);
-#endif
-#if TFT_FONT_MODE > 0
-  this->oled->drawChar(x*f_width,y*f_height, c, ILI9341_BLACK, ILI9341_WHITE, TFT_FONT_MODE);
-#endif
+  else
+	  drawBitmap_x2(x*f_width,y*f_height,font+3+((uint16_t)c)*8,f_width/fontEx, f_height/fontEx, bgcolor, fontEx);
   this->oled->display();
 }
 
 // 文字の表示
 void tOLEDScreen::WRITE(uint8_t x, uint8_t y, uint8_t c) {
-#if TFT_FONT_MODE == 0
   this->oled->fillRect(x*f_width,y*f_height,f_width,f_height, bgcolor);
   if (fontEx == 1)
     this->oled->drawBitmap(x*f_width,y*f_height,font+3+((uint16_t)c)*8,f_width,f_height, fgcolor);
   else
     drawBitmap_x2(x*f_width,y*f_height,font+3+((uint16_t)c)*8,f_width/fontEx,f_height/fontEx, fgcolor, fontEx);
-#endif
-#if TFT_FONT_MODE > 0
-  this->oled->drawChar(x*f_width,y*f_height, c, fgcolor, bgcolor, TFT_FONT_MODE);
-#endif
-  //this->oled->display();
 }
 
 // グラフィックカーソル設定
@@ -171,60 +162,61 @@ void tOLEDScreen::CLEAR_LINE(uint8_t l) {
   this->oled->display();
 }
 
-
 // スクロールアップ
 void tOLEDScreen::SCROLL_UP() {
-  switch ( this->oled->getRotation() ) {
-  case 0: // 横
-    memmove(this->oled->VRAM(), this->oled->VRAM()+128, 128*7);
-    memset(this->oled->VRAM()+128*7,0,128);
-    break;
-  case 2: // 横（逆)
-    memmove(this->oled->VRAM()+128, this->oled->VRAM(), 128*7);
-    memset(this->oled->VRAM(),0,128);
-    break;
-  case 1: // 縦
-    for (uint16_t i=0; i < 8; i++) {
-      memmove(this->oled->VRAM()+128*i+this->f_height ,this->oled->VRAM()+128*i, 128-this->f_height);
-      memset(this->oled->VRAM()+128*i, 0, this->f_height);
+  for (uint8_t cnt = 0; cnt < this->fontEx; cnt++) {
+    switch ( this->oled->getRotation() ) {
+    case 0: // 横
+      memmove(this->oled->VRAM(), this->oled->VRAM() + OLED_WIDTH, OLED_WIDTH*7);
+      memset(this->oled->VRAM()+OLED_WIDTH*7,0,OLED_WIDTH);
+      break;
+    case 2: // 横（逆)
+      memmove(this->oled->VRAM()+OLED_WIDTH, this->oled->VRAM(), OLED_WIDTH*7);
+      memset(this->oled->VRAM(),0,OLED_WIDTH);
+      break;
+    case 1: // 縦
+      for (uint16_t i=0; i <8; i++) {
+        memmove(this->oled->VRAM() + OLED_WIDTH*i + this->f_height ,this->oled->VRAM() + OLED_WIDTH*i, OLED_WIDTH - this->f_height);
+        memset(this->oled->VRAM()+OLED_WIDTH*i, 0, this->f_height);
+      }
+      break;
+    case 3: // 縦(逆)
+      for (uint16_t i=0; i < 8; i++) {
+        memmove(this->oled->VRAM() + OLED_WIDTH*i ,this->oled->VRAM() + OLED_WIDTH*i + this->f_height, OLED_WIDTH - this->f_height);
+        memset(this->oled->VRAM() + OLED_WIDTH*i + OLED_WIDTH - this->f_height, 0, this->f_height);
+      }
+      break;
     }
-    break;
-  case 3: // 縦(逆)
-    for (uint16_t i=0; i < 8; i++) {
-      memmove(this->oled->VRAM()+128*i ,this->oled->VRAM()+128*i+this->f_height, 128-this->f_height);
-      memset(this->oled->VRAM()+128*i+128-this->f_height, 0, this->f_height);
-    }
-    break;
   }  
   this->oled->display();
-
 }
 
 // スクロールダウン
 void tOLEDScreen::SCROLL_DOWN() {
-  //INSLINE(0);
-  switch ( this->oled->getRotation() ) {
-  case 2: // 横
-    memmove(this->oled->VRAM(), this->oled->VRAM()+128, 128*7);
-    memset(this->oled->VRAM()+128*7,0,128);
-    break;
-  case 0: // 横（逆)
-    memmove(this->oled->VRAM()+128, this->oled->VRAM(), 128*7);
-    memset(this->oled->VRAM(),0,128);
-    break;
-  case 3: // 縦
-    for (uint16_t i=0; i < 8; i++) {
-      memmove(this->oled->VRAM()+128*i+this->f_height ,this->oled->VRAM()+128*i, 128-this->f_height);
-      memset(this->oled->VRAM()+128*i, 0, this->f_height);
-    }
-    break;
-  case 1: // 縦(逆)
-    for (uint16_t i=0; i < 8; i++) {
-      memmove(this->oled->VRAM()+128*i ,this->oled->VRAM()+128*i+this->f_height, 128-this->f_height);
-      memset(this->oled->VRAM()+128*i+128-this->f_height, 0, this->f_height);
-    }
-    break;
-  }  
+  for (uint8_t cnt = 0; cnt < this->fontEx; cnt++) {
+    switch ( this->oled->getRotation() ) {
+    case 2: // 横
+      memmove(this->oled->VRAM(), this->oled->VRAM() + OLED_WIDTH, OLED_WIDTH*7);
+      memset(this->oled->VRAM() + OLED_WIDTH*7,0, OLED_WIDTH);
+      break;
+    case 0: // 横（逆)
+      memmove(this->oled->VRAM() + OLED_WIDTH, this->oled->VRAM(), OLED_WIDTH*7);
+      memset(this->oled->VRAM(), 0, OLED_WIDTH);
+      break;
+    case 3: // 縦
+      for (uint16_t i=0; i < 8; i++) {
+        memmove(this->oled->VRAM() + OLED_WIDTH*i + this->f_height ,this->oled->VRAM() + OLED_WIDTH*i, OLED_WIDTH - this->f_height);
+        memset(this->oled->VRAM() + OLED_WIDTH*i, 0, this->f_height);
+      }
+      break;
+    case 1: // 縦(逆)
+      for (uint16_t i=0; i < 8; i++) {
+        memmove(this->oled->VRAM() + OLED_WIDTH*i ,this->oled->VRAM() + OLED_WIDTH*i+this->f_height, OLED_WIDTH - this->f_height);
+        memset(this->oled->VRAM() + OLED_WIDTH*i + OLED_WIDTH - this->f_height, 0, this->f_height);
+      }
+      break;
+    }  
+  }
   this->oled->display();
 }
 
@@ -235,15 +227,8 @@ void tOLEDScreen::INSLINE(uint8_t l) {
 
 // 文字色指定
 void tOLEDScreen::setColor(uint16_t fc, uint16_t bc) {
-  if (fc>8)
-	  fgcolor = fc;
-	else
-	  fgcolor = tbl_color[fc];
-	if (bc>8)
-    bgcolor = bc;
-	else
-   bgcolor = tbl_color[bc];
-  
+  fgcolor = fc;
+  bgcolor = bc;
 }
 
 // 文字属性
@@ -274,55 +259,23 @@ void tOLEDScreen::drawBitmap_x2(int16_t x, int16_t y, const uint8_t *bitmap, int
      }
    }
  }
-  //this->oled->display();
 }
-/*
-// カラービットマップの拡大描画
-// 8ビット色: RRRGGGBB 
-void tOLEDScreen::colorDrawBitmap(int16_t x, int16_t y, const uint8_t *bitmap, int16_t w, int16_t h, uint16_t ex, uint8_t f) {
-  int16_t i, j;
-  uint16_t color8,color16,r,g,b;
-  for( j = 0; j < h; j++) {
-    for(i = 0; i < w; i++ ) { 
-      color8   = *(bitmap+w*j+i);
-      r =  color8 >>5;
-      g = (color8>>2)&7;
-      b =  color8 & 3;
-      color16 = this->oled->color565(r<<5,g<<5,b<<6); // RRRRRGGGGGGBBBBB
-      if ( color16 || (!color16 && f) ) {
-        // ドットあり
-        if (ex == 1) {
-          // 1倍
-           this->oled->drawPixel(x+i, y+j, color16);
-        } else {
-            this->oled->fillRect(x + i * ex, y + j * ex, ex, ex, color16);
-        }
-     }
-   }
- }
-}
-*/
+
 
 // ドット描画
 void tOLEDScreen::pset(int16_t x, int16_t y, uint16_t c) {
-  if (c<=8)
-    c = tbl_color[c];  
   this->oled->drawPixel(x, y, c);
   this->oled->display();
 }
 
 // 線の描画
 void tOLEDScreen::line(int16_t x1, int16_t y1, int16_t x2, int16_t y2, uint16_t c){
-  if (c<=8)
-    c = tbl_color[c];
   this->oled->drawLine(x1, y1, x2, y2, c);
   this->oled->display();
 }
 
 // 円の描画
 void tOLEDScreen::circle(int16_t x, int16_t y, int16_t r, uint16_t c, int8_t f) {
- if (c<=8)
-    c = tbl_color[c];
  if(f)
    this->oled->fillCircle(x, y, r, c);
  else
@@ -332,7 +285,7 @@ void tOLEDScreen::circle(int16_t x, int16_t y, int16_t r, uint16_t c, int8_t f) 
 
 // 四角の描画
 void tOLEDScreen::rect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t c, int8_t f) {
- if(f)
+  if(f)
    this->oled->fillRect(x, y, w, h, c);
  else
    this->oled->drawRect(x, y, w, h, c);
@@ -342,145 +295,184 @@ void tOLEDScreen::rect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t c, i
 // ビットマップの描画
 void  tOLEDScreen::bitmap(int16_t x, int16_t y, uint8_t* adr, uint16_t index, uint16_t w, uint16_t h, uint16_t d, uint8_t rgb) {
   uint8_t*bmp;
-  if (rgb == 0) {
-    bmp = adr + ((w + 7) / 8) * h * index;
-    this->drawBitmap_x2(x, y, (const uint8_t*)bmp, w, h, fgcolor, d, 1);
-    this->oled->display();
-  } else {
-/*
-    bmp = adr + w * h * index;
-    this->colorDrawBitmap(x, y, (const uint8_t*)bmp, w, h, d, 1);
-*/
-  }  
+  bmp = adr + ((w + 7) / 8) * h * index;
+  this->drawBitmap_x2(x, y, (const uint8_t*)bmp, w, h, fgcolor, d, 1);
+  this->oled->display();
 }
 
-
-// These read 16- and 32-bit types from the SD card file.
-// BMP data is stored little-endian, Arduino is little-endian too.
-// May need to reverse subscript order if porting elsewhere.
-// 本関数はAdafruit_ILI9341_STMライブラリのサンプルspitftbitmapを利用しています
-//
-static uint16_t read16(File &f) {
-  uint16_t result;
-  ((uint8_t *)&result)[0] = f.read(); // LSB
-  ((uint8_t *)&result)[1] = f.read(); // MSB
-  return result;
+// 指定座標のドットの取得
+int16_t tOLEDScreen::gpeek(int16_t x, int16_t y) {
+  return this->oled->getPixel(x, y);
 }
 
-static uint32_t read32(File &f) {
-  uint32_t result;
-  ((uint8_t *)&result)[0] = f.read(); // LSB
-  ((uint8_t *)&result)[1] = f.read();
-  ((uint8_t *)&result)[2] = f.read();
-  ((uint8_t *)&result)[3] = f.read(); // MSB
-  return result;
-}
-
-//
-// ビットマックロード
-// 本関数はAdafruit_ILI9341_STMライブラリのサンプルspitftbitmapを利用しています
-//
-/*
-uint8_t tOLEDScreen::bmpDraw(char *filename, uint8_t x, uint16_t y, uint16_t bx, uint16_t by, uint16_t bw, uint16_t bh) {
-
-  File     bmpFile;
-  int      bmpWidth, bmpHeight;   // W+H in pixels
-  uint8_t  bmpDepth;              // Bit depth (currently must be 24)
-  uint32_t bmpImageoffset;        // Start of image data in file
-  uint32_t rowSize;               // Not always = bmpWidth; may have padding
-  uint8_t  sdbuffer[3*BUFFPIXEL]; // pixel buffer (R+G+B per pixel)
-  uint8_t  buffidx = sizeof(sdbuffer); // Current position in sdbuffer
-  boolean  goodBmp = false;       // Set to true on valid header parse
-  boolean  flip    = true;        // BMP is stored bottom-to-top
-  int      w, h, row, col;
-  uint8_t  r, g, b;
-  uint32_t pos = 0;
-  uint8_t rc = 0;
-  
-  if((x >= this->oled->width()) || (y >= this->oled->height())) return 10;
-  if (SD_BEGIN() == false) 
-    return SD_ERR_INIT;
-  if ((bmpFile = SD.open(filename)) == NULL) {
-    rc = SD_ERR_OPEN_FILE;
-  	goto ERROR;
-  }
-  
-  // Parse BMP header
-  if(read16(bmpFile) == 0x4D42) { // BMP signature
-  	read32(bmpFile);
-  	(void)read32(bmpFile);            // Read & ignore creator bytes
-    bmpImageoffset = read32(bmpFile); // Start of image data
-
-  	// Read DIB header
-  	read32(bmpFile);
-    bmpWidth  = read32(bmpFile);  // ビットマップ画像横ドット数
-    bmpHeight = read32(bmpFile);  // ビットマック画像縦ドット数
-    if(read16(bmpFile) == 1) { // # planes -- must be '1'
-      bmpDepth = read16(bmpFile); // bits per pixel
-      if((bmpDepth == 24) && (read32(bmpFile) == 0)) { // 0 = uncompressed
-
-        goodBmp = true; // Supported BMP format -- proceed!
-      	
-        rowSize = (bmpWidth * 3 + 3) & ~3;
-        if(bmpHeight < 0) {
-          bmpHeight = -bmpHeight;
-          flip      = false;
-        }
-
-        // Crop area to be loaded
-        w = bmpWidth;
-        h = bmpHeight;
-        if (bx+bw >= w) bw=w-bx;
-        if (by+bh >= h) bh=h-by;
-        w=bx+bw;
-        h=by+bh;
-        
-        if((x+w-1) >= this->oled->width())  w = this->oled->width()  - x;
-        if((y+h-1) >= this->oled->height()) h = this->oled->height() - y;
-       
-        // Set TFT address window to clipped image bounds
-        this->oled->setAddrWindow(x, y, x+bw-1, y+bh-1);
-        for (row = by; row < h; row++) {
-          // ビットマップ画像のライン毎のデータ処理
-          
-          // 格納画像の向きの補正
-          if(flip)
-            pos = bmpImageoffset + (bmpHeight - 1 - row) * rowSize + bx*3;
-          else 
-            pos = bmpImageoffset + row * rowSize + bx*3;
-          Serial.print("pos=");
-          Serial.println(pos,DEC);
-          if(bmpFile.position() != pos) {
-            bmpFile.seek(pos);
-            buffidx = sizeof(sdbuffer); 
-          }
-
-          for (col=bx; col<w; col++) {
-            // ドット毎の処理
-            // Time to read more pixel data?
-            if (buffidx >= sizeof(sdbuffer)) { // Indeed
-              bmpFile.read(sdbuffer, sizeof(sdbuffer));
-              buffidx = 0; // Set index to beginning
-            }
-
-            // Convert pixel from BMP to TFT format, push to display
-              b = sdbuffer[buffidx++];
-              g = sdbuffer[buffidx++];
-              r = sdbuffer[buffidx++];
-              this->oled->pushColor(this->oled->color565(r,g,b));
-          } // end pixel
-        } // end scanline
-      } // end goodBmp
+// 指定領域のピクセル有無チェック
+int16_t tOLEDScreen::ginp(int16_t x, int16_t y, int16_t w, int16_t h, uint8_t c) {
+  for (int16_t i = y ; i < y+h; i++) {
+    for (int16_t j= x; j < x+w; j++) {
+      if (this->gpeek(x,y) == c) {
+          return 1;
+      }
     }
   }
-
-  bmpFile.close();
-ERROR:
-  SD.end();
-	
-  if(!goodBmp) {
-    rc =  10;
-  }
- return rc;
+  return 0;	
 }
-*/
+
+// キャラクタ画面スクロール
+// x: スクロール開始位置 x
+// y: スクロール開始位置 y
+// w: スクロール幅
+// h: スクロール高さ
+// d:方向
+
+void tOLEDScreen::cscroll(int16_t x, int16_t y, int16_t w, int16_t h, uint8_t d) {
+  tGraphicScreen::cscroll(x, y, w,h,d);
+  this->oled->display();
+}
+
+// グラフィックスクロール(横向き起点)
+// x: スクロール開始位置 x (1ドット単位)
+// y: スクロール開始位置 y (8ドット単位)
+// w: スクロール幅 (1ドット単位)
+// h: スクロール高さ(8ドット単位)
+// d:方向 0:上 1:下 2:右 3:左
+//
+
+static const uint8_t remap[4][4] = { {0,1,2,3},{2,3,1,0},{1,0,3,2},{3,2,0,1}};
+void tOLEDScreen::gscroll(int16_t x, int16_t y, int16_t w, int16_t h, uint8_t mode) {
+  int16_t tmp;
+  mode = remap[this->oled->getRotation()][mode]; // 画面の向きによるスクロール方向補正
+  switch (this->oled->getRotation()) {
+    case 1:
+      swap(x,y);
+      swap(w,h);
+      x = OLED_WIDTH-x-w;
+      break;
+    case 2:
+      x = OLED_WIDTH-x-w;
+      y = OLED_HEIGHT-y-h;
+      break;
+    case 3:
+      swap(x,y);
+      swap(w,h);
+      y = OLED_HEIGHT-y-h;
+      break;
+  }
+  
+  
+  uint8_t* bmp = this->getGRAM();     // フレームバッファ参照位置 
+  uint16_t top_by = y/8;              // 縦スクロール開始バイト位置
+  uint16_t end_by = (y+h+7)/8-1;      // 縦スクロール終了バイト位置
+  
+  uint16_t bh = h/8;                  // 縦バイト数
+  uint16_t by = y/8;                  // 縦バイト位置
+  uint8_t prv_bit;                    // 直前のドット
+  uint8_t d,d1,d2,msk;                // 取り出しデータ
+  uint16_t addr;                      // データアドレス
+    
+  switch(mode) {
+      case 0: // 上
+        for (int16_t i = x; i < x+w; i++) { // 横ループ
+          prv_bit = 0;
+          for (int16_t j = end_by; j >=top_by ; j--) { // 縦ループ
+            addr = j*OLED_WIDTH+i;
+            d = bmp[addr];
+            if (j == top_by && y%8) {             // 上部端数の処理
+              msk = ~(0xff<<(y%8));                 // マスクデータ
+              d1  =  msk & d;                       // スクロールしない部分
+              d2  = (~msk & d)>>1 ;                 // スクロールデータ
+              bmp[addr] = d1| d2;                   // 合成データ
+            } else if (j == end_by && (y+h)%8) {  // 下部端数の処理
+              msk = 0xff<<((y+h)%8);                // マスクデータ
+              d1 =  msk & d;                        // スクロールしない部分
+              d2 = (~msk & d)>>1;                   // スクロールする分のデータ
+              bmp[addr] = d1| d2;                   // 合成データ
+            } else {
+              bmp[addr]>>=1;                      // 端数でない処理
+            }
+            bmp[addr] |= (prv_bit<<7);            // キャリーアウトビットの付加
+            prv_bit = d & 1;
+          }
+        }
+        break;
+      case 1: // 下
+        for (int16_t i = x; i < x+w; i++) { // 横ループ
+          prv_bit = 0;
+          for (int16_t j = top_by; j <=end_by ; j++) { // 縦ループ
+            addr = j*OLED_WIDTH+i;
+            d = bmp[addr];
+            if (j == top_by && y%8) {             // 上部端数の処理
+              msk = ~(0xff<<(y%8));                 // マスクデータ
+              d1  =  msk & d;                       // スクロールしない部分
+              d2  = (~msk & d)<<1 ;                 // スクロールデータ
+              bmp[addr] = d1| d2;                   // 合成データ
+            } else if (j == end_by && (y+h)%8) {  // 下部端数の処理
+              msk = 0xff<<((y+h)%8);                // マスクデータ
+              d1 =  msk & d;                        // スクロールしない部分
+              d2 = (~msk & d)<<1;                   // スクロールする分のデータ
+              bmp[addr] = d1| d2;                   // 合成データ
+            } else {
+              bmp[addr]<<=1;                      // 端数でない処理
+            }
+            bmp[addr] |= (prv_bit>>7);            // キャリーアウトビットの付加
+            prv_bit = d & 0x80;
+          }
+        }
+        break;
+      case 2: // 右
+        for (int16_t j = top_by; j <= end_by; j++) { // 縦ループ
+          addr = OLED_WIDTH*j+x;
+          if ((j == top_by) && y%8) {             // 上部端数の処理
+            msk = ~(0xff<<(y%8));                   // マスクデータ
+            for (int16_t i = w-1; i >= 1; i--) {
+              d1  =  msk & bmp[addr+i];             // スクロールしない部分
+              d2  = ~msk & bmp[addr+i-1] ;          // スクロールデータ
+              bmp[addr+i] = d1| d2;                 // 合成データ
+            }
+            bmp[addr] &= msk;
+          } else if (j == end_by && (y+h)%8) {  // 下部端数の処理
+            msk = 0xff<<((y+h)%8);                  // マスクデータ
+            for (int16_t i = w-1; i >= 1; i--) {
+              d1  =  msk & bmp[addr+i];             // スクロールしない部分
+              d2  = ~msk & bmp[addr+i-1] ;          // スクロールデータ
+              bmp[addr+i] = d1| d2;                 // 合成データ
+            }
+            bmp[addr] &= msk;
+          } else {                              // 端数でない処理
+            for (uint16_t i =w-1; i >= 1; i--) {
+               bmp[addr+i] = bmp[addr+i-1];
+            }
+            bmp[addr]=0;
+          }  
+        }
+        break;
+      case 3: // 左
+        for (int16_t j = top_by; j <= end_by; j++) { // 縦ループ
+          addr = OLED_WIDTH*j+x;
+          if ((j == top_by) && y%8) {             // 上部端数の処理
+            msk = ~(0xff<<(y%8));                   // マスクデータ
+            for (uint16_t i =1; i <= w-1; i++) {
+              d1  =  msk & bmp[addr+i-1];           // スクロールしない部分
+              d2  = ~msk & bmp[addr+i] ;            // スクロールデータ
+              bmp[addr+i-1] = d1| d2;                 // 合成データ
+            }
+            bmp[addr+w-1] &= msk;
+          } else if (j == end_by && (y+h)%8) {  // 下部端数の処理
+            msk = 0xff<<((y+h)%8);                  // マスクデータ
+            for (uint16_t i =1; i <= w-1; i++) {
+              d1  =  msk & bmp[addr+i-1];           // スクロールしない部分
+              d2  = ~msk & bmp[addr+i] ;            // スクロールデータ
+              bmp[addr+i-1] = d1| d2;                 // 合成データ
+            }
+            bmp[addr+w-1] &= msk;
+          } else {                              // 端数でない処理
+            for (uint16_t i =1; i <= w-1; i++) {
+               bmp[addr+i-1] = bmp[addr+i];
+            }
+            bmp[addr+w-1]=0;
+          }  
+        }
+        break;
+  
+  } 
+  this->oled->display();
+} 

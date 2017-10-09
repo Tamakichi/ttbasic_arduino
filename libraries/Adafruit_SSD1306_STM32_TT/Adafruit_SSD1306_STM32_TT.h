@@ -35,7 +35,7 @@ All text above, and the splash screen must be included in any redistribution
 //typedef volatile RwReg PortReg;
 // typedef uint32_t PortMask;
 #include <SPI.h>
-#include <Adafruit_GFX.h>
+#include <Adafruit_GFX_AS.h>
 
 #define BLACK 0
 #define WHITE 1
@@ -143,7 +143,8 @@ class Adafruit_SSD1306 : public Adafruit_GFX {
   void clearDisplay(void);
   void invertDisplay(uint8_t i);
   void display();
-
+  uint8_t* VRAM(); // 2017/9/19 Tamakichi
+  
   void startscrollright(uint8_t start, uint8_t stop);
   void startscrollleft(uint8_t start, uint8_t stop);
 
@@ -154,7 +155,8 @@ class Adafruit_SSD1306 : public Adafruit_GFX {
   void dim(boolean dim);
 
   void drawPixel(int16_t x, int16_t y, uint16_t color);
-
+  uint16_t getPixel(int16_t x, int16_t y); // 2017/9/19 Tamakichi
+  
   virtual void drawFastVLine(int16_t x, int16_t y, int16_t h, uint16_t color);
   virtual void drawFastHLine(int16_t x, int16_t y, int16_t w, uint16_t color);
 

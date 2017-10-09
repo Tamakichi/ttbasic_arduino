@@ -20,6 +20,7 @@
 // 2017/08/24 tone(),フォント汎用利用のための修正(tTVscreen依存しないための修正)
 // 2017/08/28 CLVが2文字変数の初期化しない不具合の修正
 // 2017/08/28 PWM出力の16Hz未満の出力対応
+// 2017/10/09 定数ON,OFFの追加
 //
 
 #include <Arduino.h>
@@ -31,7 +32,7 @@
 #include "tTermscreen.h"
 
 #define STR_EDITION "Arduino STM32"
-#define STR_VARSION "Edition V0.84"
+#define STR_VARSION "Edition V0.85"
 
 // TOYOSHIKI TinyBASIC プログラム利用域に関する定義
 #define SIZE_LINE 128    // コマンドライン入力バッファサイズ + NULL
@@ -62,6 +63,10 @@ __attribute__((always_inline)) uint8_t* getFontAdr() { return (uint8_t*)ttbasic_
 // **** スクリーン管理 *************
 uint8_t* workarea = NULL;
 uint8_t scmode = USE_SCREEN_MODE;
+uint8_t prv_scmode = scmode;
+uint8_t scrt = 0;
+uint8_t prv_scrt = 0;
+
 tscreenBase* sc;
 tTermscreen sc1; 
 
@@ -77,10 +82,10 @@ tTermscreen sc1;
   #include "tOLEDScreen.h"
   tOLEDScreen sc2;
 #endif
-
+/*
 uint16_t tv_get_gwidth();
 uint16_t tv_get_gheight();
-
+*/
 #define KEY_ENTER 13
 
 // **** I2Cライブラリの利用設定 ****
@@ -174,6 +179,8 @@ void error(uint8_t flgCmd);
 // 定数
 #define CONST_HIGH   1
 #define CONST_LOW    0
+#define CONST_ON     1
+#define CONST_OFF    0
 #define CONST_LSB    LSBFIRST
 #define CONST_MSB    MSBFIRST
 #define SRAM_TOP     0x20000000
@@ -194,7 +201,7 @@ const WiringPinMode pinType[] = {
 #define IsIO_PIN(N)  IsUseablePin(N,FNC_IN_OUT)
 
 // ピン機能チェックテーブル
-#if USE_TFT == 1 || USE_OLED == 1 // TFT/OLED 利用専用環境
+#if USE_TFT == 1 || (USE_OLED == 1 && OLED_IFMODE == 1) // TFT/OLED(SPI) 利用専用環境
 const uint8_t pinFunc[]  = {
   5,5,5,5,5,5,7,7,3,3,  //  0 -  9: PA0,PA1,PA2,PA3,PA4,PA5,PA6,PA7,PA8,PA9,
   3,0,0,1,1,1,7,7,1,1,  // 10 - 19: PA10,PA11,PA12,PA13,PA14,PA15,PB0,PB1,PB2,PB3, 
@@ -208,7 +215,7 @@ const uint8_t pinFunc[]  = {
   0,0,0,0,1,0,1,1,1,1,  // 20 - 29: PB4,PB5,PB6,PB7,PB8,PB9,PB10,PB11,PB12,PB13,
   1,0,1,0,0,            // 30 - 34: PB14,PB15,PC13,PC14,PC15,
 };
-#else // ターミナルコンソールのみ利用環境(2017/08/23 グループメンバー投稿修正の取り込み)
+#else // ターミナルコンソールのみ利用環境 または OLED(I2C)
 const uint8_t pinFunc[] = {
  5,5,5,5,5,5,7,7,3,3,   //  0 -  9: PA0,PA1,PA2,PA3,PA4,PA5,PA6,PA7,PA8,PA9, (変更) PA1...5
  3,0,0,1,1,1,7,7,1,1,   // 10 - 19: PA10,PA11,PA12,PA13,PA14,PA15,PB0,PB1,PB2,PB3, 
@@ -294,7 +301,7 @@ const char *kwtbl[] __FLASH__  = {
  "GPIO", "OUT", "POUT", "SHIFTOUT",                             // GPIO・入出力関連コマンド(4)
  "SMODE", "SOPEN", "SCLOSE", "SPRINT", "SWRITE",                // シリアル通信関連コマンド(5)
  "LDBMP","MKDIR","RMDIR",/*"RENAME",*/ "FCOPY","CAT", "DWBMP", "REMOVE", // SDカード関連コマンド
- "HIGH", "LOW",  // 定数
+ "HIGH", "LOW", "ON", "OFF",  // 定数
  "PA0", "PA1", "PA2", "PA3", "PA4", "PA5", "PA6", "PA7", "PA8", "PA9",
  "PA10","PA11", "PA12", "PA13","PA14","PA15",
  "PB0", "PB1", "PB2", "PB3", "PB4", "PB5", "PB6", "PB7", "PB8", "PB9",
@@ -308,7 +315,7 @@ const char *kwtbl[] __FLASH__  = {
  "EEPFORMAT", "EEPWRITE",                  // 仮想EEPROM関連コマンド(2)
  "LOAD", "SAVE", "BLOAD", "BSAVE", "LIST", "NEW", "REM", "LET", "CLV",  // プログラム関連 コマンド(16)
  "LRUN", "FILES","EXPORT", "CONFIG", "SAVECONFIG", "ERASE", "SYSINFO",
- "SCREEN", "WIDTH", // 表示切替
+ "SCREEN", "WIDTH", "CONSOLE", // 表示切替
  "RENUM", "RUN", "DELETE", "OK",           // システムコマンド(4)
 };
 
@@ -333,7 +340,7 @@ enum {
  I_GPIO, I_DOUT, I_POUT, I_SHIFTOUT,  // GPIO・入出力関連コマンド(4)
  I_SMODE, I_SOPEN, I_SCLOSE, I_SPRINT, I_SWRITE,  // シリアル通信関連コマンド(5)
  I_LDBMP, I_MKDIR, I_RMDIR, /*I_RENAME,*/ I_FCOPY, I_CAT, I_DWBMP, I_REMOVE,  // SDカード関連コマンド
- I_HIGH, I_LOW, // 定数
+ I_HIGH, I_LOW, I_ON, I_OFF,// 定数
  I_PA0, I_PA1, I_PA2, I_PA3, I_PA4, I_PA5, I_PA6, I_PA7, I_PA8, I_PA9,
  I_PA10, I_PA11, I_PA12, I_PA13,I_PA14,I_PA15,
  I_PB0, I_PB1, I_PB2, I_PB3, I_PB4, I_PB5, I_PB6, I_PB7, I_PB8, I_PB9, 
@@ -348,7 +355,7 @@ enum {
  I_EEPFORMAT, I_EEPWRITE,                   // 仮想EEPROM関連コマンド(2)
  I_LOAD, I_SAVE, I_BLOAD, I_BSAVE, I_LIST, I_NEW, I_REM, I_LET, I_CLV,  // プログラム関連 コマンド(16)
  I_LRUN, I_FILES, I_EXPORT, I_CONFIG, I_SAVECONFIG, I_ERASE, I_INFO,
- I_SCREEN, I_WIDTH, // 表示切替
+ I_SCREEN, I_WIDTH, I_CONSOLE, // 表示切替
   I_RENUM, I_RUN, I_DELETE, I_OK,  // システムコマンド(4)
 
 // 内部利用コード
@@ -361,7 +368,7 @@ enum {
 const uint8_t i_nsa[] = {
   I_RETURN, I_END, 
   I_CLS,I_CLT,
-  I_HIGH, I_LOW, I_CW, I_CH, I_GW, I_GH, 
+  I_HIGH, I_LOW,  I_ON, I_OFF,I_CW, I_CH, I_GW, I_GH, 
   I_UP, I_DOWN, I_RIGHT, I_LEFT,
   I_INKEY,I_VPEEK, I_CHR, I_ASC, I_HEX, I_BIN,I_LEN, I_STRREF,
   I_COMMA, I_SEMI, I_COLON, I_SQUOT,I_QUEST,
@@ -545,8 +552,8 @@ uint8_t* v2realAddr(uint16_t vadr) {
     radr = vadr - V_FNT_TOP + getFontAdr()+3;
   } else if ((vadr >= V_GRAM_TOP) && (vadr < V_GRAM_TOP+6048)) { // グラフィク表示用メモリ領域
     if ( (scmode >= 1) && (scmode <= 3) )
-#if USE_NTSC == 1
-      radr = vadr - V_GRAM_TOP + ((tTVscreen*)sc)->getGRAM();
+#if USE_NTSC == 1 || USE_OLED == 1
+      radr = vadr - V_GRAM_TOP + ((tGraphicScreen*)sc)->getGRAM();
 #else
       radr = NULL;
 #endif
@@ -3016,7 +3023,7 @@ void ipset() {
     if (y < 0) y =0;
     if (x >= ((tGraphicScreen*)sc)->getGWidth())  x = ((tGraphicScreen*)sc)->getGWidth()-1;
     if (y >= ((tGraphicScreen*)sc)->getGHeight()) y = ((tGraphicScreen*)sc)->getGHeight()-1;
-  #if USE_NTSC == 1
+  #if USE_NTSC == 1 || USE_OLED == 1
     if (c < 0 || c > 2) c = 1;
   #endif
     ((tGraphicScreen*)sc)->pset(x,y,c);
@@ -3042,7 +3049,7 @@ void iline() {
     if (y1 >= ((tGraphicScreen*)sc)->getGHeight()) y1 = ((tGraphicScreen*)sc)->getGHeight()-1;
     if (x2 >= ((tGraphicScreen*)sc)->getGWidth())  x2 = ((tGraphicScreen*)sc)->getGWidth()-1;
     if (y2 >= ((tGraphicScreen*)sc)->getGHeight()) y2 = ((tGraphicScreen*)sc)->getGHeight()-1;
-  #if USE_NTSC == 1
+  #if USE_NTSC == 1 || USE_OLED == 1
     if (c < 0 || c > 2) c = 1;
   #endif
     ((tGraphicScreen*)sc)->line(x1, y1, x2, y2, c);
@@ -3064,7 +3071,7 @@ void icircle() {
     if (y < 0) y =0;
     if (x >= ((tGraphicScreen*)sc)->getGWidth())  x = ((tGraphicScreen*)sc)->getGWidth()-1;
     if (y >= ((tGraphicScreen*)sc)->getGHeight()) y = ((tGraphicScreen*)sc)->getGHeight()-1;
-  #if USE_NTSC == 1
+  #if USE_NTSC == 1 || USE_OLED == 1
     if (c < 0 || c > 2) c = 1;
   #endif
     if (r < 0) r = 1;
@@ -3088,7 +3095,7 @@ void irect() {
       err = ERR_VALUE;
       return;      
     }
-  #if USE_NTSC == 1
+  #if USE_NTSC == 1 || USE_OLED == 1
     if (c < 0 || c > 2) c = 1;
   #endif
     ((tGraphicScreen*)sc)->rect(x1, y1, x2-x1+1, y2-y1+1, c, f);
@@ -3145,7 +3152,7 @@ void ibitmap() {
 // キャラクタスクロール CSCROLL X1,Y1,X2,Y2,方向
 // 方向 0: 上, 1: 下, 2: 右, 3: 左
 void  icscroll() {
-#if USE_NTSC == 1
+#if USE_NTSC == 1 || USE_OLED == 1
   int16_t  x1,y1,x2,y2,d;
   if (scmode) {   
     if (getParam(x1,true)||getParam(y1,true)||getParam(x2,true)||getParam(y2,true)||getParam(d,false))
@@ -3155,7 +3162,7 @@ void  icscroll() {
       return;      
     }
     if (d < 0 || d > 3) d = 0;
-    ((tTVscreen*)sc)->cscroll(x1, y1, x2-x1+1, y2-y1+1, d);
+    ((tGraphicScreen*)sc)->cscroll(x1, y1, x2-x1+1, y2-y1+1, d);
   } else {
    err = ERR_NOT_SUPPORTED;
   }
@@ -3166,17 +3173,17 @@ void  icscroll() {
 
 // グラフィックスクロール GSCROLL X1,Y1,X2,Y2,方向
 void igscroll() {
-#if USE_NTSC == 1
+#if USE_NTSC == 1 || USE_OLED == 1
   int16_t  x1,y1,x2,y2,d;
   if (scmode) {   
     if (getParam(x1,true)||getParam(y1,true)||getParam(x2,true)||getParam(y2,true)||getParam(d,false))
       return;
-    if (x1 < 0 || y1 < 0 || x2 < x1 || y2 < y1 || x2 >= ((tTVscreen*)sc)->getGWidth() || y2 >= ((tTVscreen*)sc)->getGHeight()) {
+    if (x1 < 0 || y1 < 0 || x2 < x1 || y2 < y1 || x2 >= ((tGraphicScreen*)sc)->getGWidth() || y2 >= ((tGraphicScreen*)sc)->getGHeight()) {
       err = ERR_VALUE;
       return;      
     }
     if (d < 0 || d > 3) d = 0; 
-    ((tTVscreen*)sc)->gscroll(x1,y1,x2-x1+1, y2-y1+1, d);
+    ((tGraphicScreen*)sc)->gscroll(x1,y1,x2-x1+1, y2-y1+1, d);
   } else {
  err = ERR_NOT_SUPPORTED;
   }
@@ -3294,15 +3301,15 @@ void inotone() {
 
 // GPEEK(X,Y)関数の処理
 int16_t igpeek() {
-#if USE_NTSC == 1
+#if USE_NTSC == 1 || USE_OLED == 1
   short value; // 値
   short x, y;  // 座標
   if (scmode) {
     if (checkOpen()) return 0;
     if ( getParam(x,true) || getParam(y,false) ) return 0; 
     if (checkClose()) return 0;
-    if (x < 0 || y < 0 || x >= ((tTVscreen*)sc)->getGWidth()-1 || y >= ((tTVscreen*)sc)->getGHeight()-1) return 0;
-    return ((tTVscreen*)sc)->gpeek(x,y);  
+    if (x < 0 || y < 0 || x >= ((tGraphicScreen*)sc)->getGWidth() || y >= ((tGraphicScreen*)sc)->getGHeight()) return 0;
+    return ((tGraphicScreen*)sc)->gpeek(x,y);  
   } else {
    err = ERR_NOT_SUPPORTED;
    return 0;
@@ -3314,15 +3321,15 @@ int16_t igpeek() {
 
 // GINP(X,Y,H,W,C)関数の処理
 int16_t iginp() {
-#if USE_NTSC == 1
+#if USE_NTSC == 1 || USE_OLED == 1
   int16_t x,y,w,h,c;
   if (scmode) {
     if (checkOpen())  return 0;
     if ( getParam(x,true)||getParam(y,true)||getParam(w,true)||getParam(h,true)||getParam(c,false) ) return 0; 
     if (checkClose()) return 0;
-    if (x < 0 || y < 0 || x >= ((tTVscreen*)sc)->getGWidth() || y >= ((tTVscreen*)sc)->getGHeight() || h < 0 || w < 0) return 0;    
-    if (x+w >= ((tTVscreen*)sc)->getGWidth() || y+h >= ((tTVscreen*)sc)->getGHeight() ) return 0;     
-    return ((tTVscreen*)sc)->ginp(x, y, w, h, c);  
+    if (x < 0 || y < 0 || x >= ((tGraphicScreen*)sc)->getGWidth() || y >= ((tGraphicScreen*)sc)->getGHeight() || h < 0 || w < 0) return 0;    
+    if (x+w >= ((tGraphicScreen*)sc)->getGWidth() || y+h >= ((tGraphicScreen*)sc)->getGHeight() ) return 0;     
+    return ((tGraphicScreen*)sc)->ginp(x, y, w, h, c);  
   } else {
     err = ERR_NOT_SUPPORTED;
     return 0;
@@ -3949,11 +3956,11 @@ void iscreen() {
 
 #if USE_NTSC == 1
   // 引数チェック
-  if ( getParam(m,  0, 3, false) ) return;   // m
+  if ( getParam(m,  1, 3, false) ) return;   // m
   if (scmode == m) 
     return;
 
-  // 現在、ターミナルモードの場合は画面をクリア、終了、資源開放
+  // 画面をクリア、終了、資源開放
   prv_m = sc->getSerialMode();
   sc->cls();
   sc->show_curs(true);
@@ -3973,7 +3980,7 @@ void iscreen() {
       ((tTVscreen*)sc)->init(ttbasic_font, SIZE_LINE, CONFIG.KEYBOARD,CONFIG.NTSC, workarea, SC_224x108);
     else  if (m == 3) 
       ((tTVscreen*)sc)->init(ttbasic_font, SIZE_LINE, CONFIG.KEYBOARD,CONFIG.NTSC, workarea, SC_112x108);
-  }  
+  }
   ((tTVscreen*)sc)->Serial_mode(prv_m, GPIO_S1_BAUD);
   ((tTVscreen*)sc)->cls();
   ((tTVscreen*)sc)->show_curs(false);
@@ -3982,14 +3989,18 @@ void iscreen() {
   ((tTVscreen*)sc)->refresh();
 #elif USE_TFT == 1 || USE_OLED == 1 || USE_OLED == 1
   // 引数チェック
-  if ( getParam(m,0, 6, false) ) return;   // スクリーンモード 0～6
+  #if USE_TFT == 1
+  if ( getParam(m,1, 6, false) ) return;   // スクリーンモード 0～6
+  #else
+  if ( getParam(m,1, 3, false) ) return;   // スクリーンモード 0～3
+  #endif
 //  if (scmode == m) 
 //    return;
   if (*cip == I_COMMA) {
     cip++;
     if ( getParam(rt,0, 3, false) ) return;   // 画面回転 0～3
   }
-  
+  scrt = rt;
   prv_m = sc->getSerialMode(); 
   if (m>0) {
       sc->show_curs(true); 
@@ -4019,6 +4030,101 @@ void iscreen() {
 #else
    err = ERR_NOT_SUPPORTED;
 #endif
+}
+
+// コンソールモード指定 SCREEN N
+// N:0 デバイスコンソール 1:シリアルコンソール
+// ※ターミナルモードの場合、
+void iconsole() {
+  int16_t m,rt;
+  int8_t prv_m;
+
+#if USE_TFT == 1
+  rt = TFT_RTMODE;
+#elif USE_OLED == 1
+  rt = OLED_RTMODE;
+#endif
+
+  // 引数チェック
+  if ( getParam(m,  0, 1, false) ) return;   // m
+  if ( m == 0 && scmode > 0) {
+    // デバイスコンソール利用
+    return;
+  } else if ( m == 1 && scmode == 0) {
+    // シリアルコンソール利用中
+    return;
+  }
+
+#if USE_NTSC == 1
+  if (m == 1) {
+    // デバイスコンソールからシリアルコンソールに切り替え
+    prv_scmode = scmode;
+    scmode = 0; // シリアルコンソールモード
+
+    // 画面をクリア、終了、資源開放
+    prv_m = sc->getSerialMode();
+    sc->cls();
+    sc->show_curs(true);
+    sc->locate(0,0);
+    sc->end();
+
+    // USB-シリアルターミナルスクリーン設定
+     sc = &sc1;
+    ((tTermscreen*)sc)->init(TERM_W,TERM_H,SIZE_LINE, workarea); // スクリーン初期設定 
+  } else {
+    // NTSCスクリーン設定
+    sc = &sc0;
+    scmode = prv_scmode;
+    if (scmode == 1) 
+      ((tTVscreen*)sc)->init(ttbasic_font, SIZE_LINE, CONFIG.KEYBOARD,CONFIG.NTSC, workarea, SC_DEFAULT);
+    else if (scmode == 2)
+      ((tTVscreen*)sc)->init(ttbasic_font, SIZE_LINE, CONFIG.KEYBOARD,CONFIG.NTSC, workarea, SC_224x108);
+    else  if (scmode == 3) 
+      ((tTVscreen*)sc)->init(ttbasic_font, SIZE_LINE, CONFIG.KEYBOARD,CONFIG.NTSC, workarea, SC_112x108);
+
+    ((tTVscreen*)sc)->Serial_mode(prv_m, GPIO_S1_BAUD);
+    ((tTVscreen*)sc)->cls();
+    ((tTVscreen*)sc)->show_curs(false);
+    ((tTVscreen*)sc)->draw_cls_curs();
+    ((tTVscreen*)sc)->locate(0,0);
+    ((tTVscreen*)sc)->refresh();
+  }
+#elif USE_TFT == 1 || USE_OLED == 1 
+  prv_m = sc->getSerialMode(); 
+  if (m == 1) {
+    // デバイスコンソールからシリアルコンソールに切り替え
+    prv_scmode = scmode;
+    prv_scrt = scrt;
+    scmode = 0; // シリアルコンソールモード
+    sc->cls(); // TFTスクルーンは画面消去
+    sc = &sc1; // スクリーン切替
+    ((tTermscreen*)sc)->init(TERM_W,TERM_H,SIZE_LINE, workarea);// USB-シリアルターミナルスクリーン設定
+  } else {
+    // シリアルコンソールからデバイスコンソールに切り替え
+    sc->show_curs(true); 
+    sc = &sc2; // スクルーン切替
+    scmode = prv_scmode;
+    scrt = prv_scrt;
+  #if USE_TFT == 1      
+    ((tTFTScreen*)sc)->setScreen(scmode, scrt);
+    ((tTFTScreen*)sc)->cls();
+    ((tTFTScreen*)sc)->show_curs(false);
+    ((tTFTScreen*)sc)->draw_cls_curs();
+    ((tTFTScreen*)sc)->locate(0,0);
+    ((tTFTScreen*)sc)->refresh();    
+  #elif USE_OLED == 1
+    ((tOLEDScreen*)sc)->setScreen(scmode, scrt);
+    ((tOLEDScreen*)sc)->cls();
+    ((tOLEDScreen*)sc)->show_curs(false);
+    ((tOLEDScreen*)sc)->draw_cls_curs();
+    ((tOLEDScreen*)sc)->locate(0,0);
+    ((tOLEDScreen*)sc)->refresh(); 
+  }   
+  #endif
+#else
+   err = ERR_NOT_SUPPORTED;
+#endif
+
 }
 
 //
@@ -4212,13 +4318,9 @@ void error(uint8_t flgCmd = false) {
       c_puts(" ");
       putlist(clp + 3);          
       newline();
-      //err = 0;
-      //return;
     } else {                   // 指示の実行中なら
       c_puts(errmsg[err]);     // エラーメッセージを表示
       newline();               // 改行
-      //err = 0;               // エラー番号をクリア
-      //return;
     }
   } 
   c_puts(errmsg[0]);           //「OK」を表示
@@ -4364,6 +4466,8 @@ int16_t ivalue() {
   // 定数
   case I_HIGH:  value = CONST_HIGH; break;
   case I_LOW:   value = CONST_LOW;  break;
+  case I_ON:    value = CONST_ON;   break;
+  case I_OFF:   value = CONST_OFF;  break;
   case I_LSB:   value = CONST_LSB;  break;
   case I_MSB:   value = CONST_MSB;  break;
 
@@ -5001,6 +5105,7 @@ unsigned char* iexe() {
     case I_SAVE:       isave();       break;
     case I_WIDTH:      iwidth();      break;
     case I_SCREEN:     iscreen();     break;
+    case I_CONSOLE:    iconsole();    break;
 
     case I_RUN:    // RUN
     case I_RENUM:  // RENUM
@@ -5128,7 +5233,7 @@ void basic() {
   else {
     // OLEDスクリーン設定
     sc = &sc2;
-    ((tOLEDScreen*)sc)->init(ttbasic_font, SIZE_LINE, CONFIG.KEYBOARD, workarea,1, OLED_RTMODE);
+    ((tOLEDScreen*)sc)->init(ttbasic_font, SIZE_LINE, CONFIG.KEYBOARD, workarea,1, OLED_RTMODE, OLED_IFMODE);
   }
 #endif
   if (serialMode == 1) {
@@ -5157,7 +5262,7 @@ void basic() {
   newline();                    // 改行
   error();                      //「OK」またはエラーメッセージを表示してエラー番号をクリア
   sc->show_curs(1);
-
+  
   // プログラム自動起動
   if (CONFIG.STARTPRG >=0  && loadPrg(CONFIG.STARTPRG) == 0) {
     sc->show_curs(0);
@@ -5170,6 +5275,7 @@ void basic() {
   }
   
   // 端末から1行を入力して実行
+  sc->show_curs(1);
   while (1) { //無限ループ
     rc = sc->edit();
     if (rc) {

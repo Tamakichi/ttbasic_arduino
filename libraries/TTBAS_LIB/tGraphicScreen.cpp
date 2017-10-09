@@ -239,3 +239,43 @@ uint8_t tGraphicScreen::edit() {
   show_curs(true);
 }
 
+// キャラクタ画面スクロール
+void tGraphicScreen::cscroll(int16_t x, int16_t y, int16_t w, int16_t h, uint8_t d) {
+  switch(d) {
+    case 0: // 上
+      for (uint16_t i= 0; i < h-1; i++) {
+        memcpy(&VPEEK(x,y+i), &VPEEK(x,y+i+1), w);
+      }
+      memset(&VPEEK(x, y + h - 1), 0, w);
+      break;            
+
+    case 1: // 下
+      for (uint16_t i= 0; i < h-1; i++) {
+        memcpy(&VPEEK(x,y + h-1-i), &VPEEK(x,y+h-1-i-1), w);
+      }
+      memset(&VPEEK(x, y), 0, w);
+      break;            
+
+    case 2: // 右
+      for (uint16_t i=0; i < h; i++) {
+        memmove(&VPEEK(x+1, y+i) ,&VPEEK(x,y+i), w-1);
+        VPOKE(x,y+i,0);
+      }
+      break;
+      
+    case 3: // 左
+      for (uint16_t i=0; i < h; i++) {
+        memmove(&VPEEK(x,y+i) ,&VPEEK(x+1,y+i), w-1);
+        VPOKE(x+w-1,y+i,0);
+      }
+      break;
+  }
+  uint8_t c;
+  for (uint8_t i = 0; i < h; i++) 
+    for (uint8_t j=0; j < w; j++) {
+      c = VPEEK(x+j,y+i);
+      this->WRITE(x+j,y+i, c?c:32);
+    }
+}
+
+

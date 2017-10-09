@@ -287,10 +287,10 @@ uint8_t sdbitmap::getBitmap(uint8_t*bmp, uint16_t x0, uint16_t y0,
     } else {
       // モノクログラフィック液晶形式
       for ( uint16_t col = bx ; col < bx+bw ; col++ ) {
-        setVdata(bmp, _bmpfile.read(), x0+(col-bx)*8, y0+row-y,8, offset);
+        setVdata(bmp, mode ? ~_bmpfile.read(): _bmpfile.read(), x0+(col-bx)*8, y0+row-y,8, offset);
       }
       if (bit_w && ptr) // 8の倍数でない
-        setVdata(bmp, 0, x0+(bx+bw-1)*8+bit_w, y0+row-y, 8-bit_w, offset);
+        setVdata(bmp, mode ? 0: 0xff, x0+(bx+bw-1)*8+bit_w, y0+row-y, 8-bit_w, offset);
     }
   }
   return 0;

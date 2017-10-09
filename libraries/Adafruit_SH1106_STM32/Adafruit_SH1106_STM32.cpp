@@ -19,7 +19,7 @@ All text above, and the splash screen below must be included in any redistributi
 #include <stdlib.h>
 #include "Adafruit_SH1106_STM32.h"
 
-#define OLD_ARDUINO_STM32 0  // Arduino STM32ä¬ã´Ç™ R20170323:1ÅA ÇªÇÍà»ç~ 0
+#define OLD_ARDUINO_STM32 1  // Arduino STM32ä¬ã´Ç™ R20170323:1ÅA ÇªÇÍà»ç~ 0
 
 #if OLD_ARDUINO_STM32 == 1
   #include <HardWire.h>
@@ -144,6 +144,31 @@ void Adafruit_SH1106::drawPixel(int16_t x, int16_t y, uint16_t color) {
     
 }
 
+// get a single pixel
+uint16_t Adafruit_SH1106::getPixel(int16_t x, int16_t y) {
+  if ((x < 0) || (x >= width()) || (y < 0) || (y >= height()))
+    return 0;
+
+   // check rotation, move pixel around if necessary
+  switch (getRotation()) {
+  case 1:
+    swap(x, y);
+    x = WIDTH - x - 1;
+    break;
+  case 2:
+    x = WIDTH - x - 1;
+    y = HEIGHT - y - 1;
+    break;
+  case 3:
+    swap(x, y);
+    y = HEIGHT - y - 1;
+    break;
+  }  
+
+  return buffer[x+ (y/8)*SH1106_LCDWIDTH] & (1 << (y&7)) ? 1:0;
+}
+
+  
 Adafruit_SH1106::Adafruit_SH1106(int8_t SID, int8_t SCLK, int8_t DC, int8_t RST, int8_t CS) : Adafruit_GFX(SH1106_LCDWIDTH, SH1106_LCDHEIGHT) {
   cs = CS;
   rst = RST;

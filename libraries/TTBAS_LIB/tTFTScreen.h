@@ -68,6 +68,7 @@ class tTFTScreen :public tGraphicScreen {
     void     rect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t c, int8_t f);
     void     bitmap(int16_t x, int16_t y, uint8_t* adr, uint16_t index, uint16_t w, uint16_t h, uint16_t d, uint8_t rgb=0);
     void     gscroll(int16_t x, int16_t y, int16_t w, int16_t h, uint8_t mode){};
+    void     cscroll(int16_t x, int16_t y, int16_t w, int16_t h, uint8_t d) {};
     int16_t  gpeek(int16_t x, int16_t y){};
     int16_t  ginp(int16_t x, int16_t y, int16_t w, int16_t h, uint8_t c){};
     void     set_gcursor(uint16_t, uint16_t);

@@ -125,7 +125,6 @@ class tTVscreen : public tGraphicScreen {
       return (ch >= 32); 
     };
 */
-    void cscroll(int16_t x, int16_t y, int16_t w, int16_t h, uint8_t d);
 
     // システム設定
     void  adjustNTSC(int16_t ajst);
