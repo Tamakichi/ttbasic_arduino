@@ -4005,21 +4005,21 @@ void iscreen() {
   if (m>0) {
       sc->show_curs(true); 
       sc = &sc2; // スクルーン切替
-#if USE_TFT == 1      
+  #if USE_TFT == 1      
       ((tTFTScreen*)sc)->setScreen(m,rt);
       ((tTFTScreen*)sc)->cls();
       ((tTFTScreen*)sc)->show_curs(false);
       ((tTFTScreen*)sc)->draw_cls_curs();
       ((tTFTScreen*)sc)->locate(0,0);
       ((tTFTScreen*)sc)->refresh();    
-#elif USE_OLED == 1
+  #elif USE_OLED == 1
       ((tOLEDScreen*)sc)->setScreen(m,rt);
       ((tOLEDScreen*)sc)->cls();
       ((tOLEDScreen*)sc)->show_curs(false);
       ((tOLEDScreen*)sc)->draw_cls_curs();
       ((tOLEDScreen*)sc)->locate(0,0);
       ((tOLEDScreen*)sc)->refresh();    
-#endif
+  #endif
       scmode = m;
     } else {
       sc->cls(); // TFTスクルーンは画面消去
@@ -4119,12 +4119,11 @@ void iconsole() {
     ((tOLEDScreen*)sc)->draw_cls_curs();
     ((tOLEDScreen*)sc)->locate(0,0);
     ((tOLEDScreen*)sc)->refresh(); 
-  }   
   #endif
+  }   
 #else
    err = ERR_NOT_SUPPORTED;
 #endif
-
 }
 
 //

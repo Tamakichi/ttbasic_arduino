@@ -12,15 +12,15 @@
 #define __ttconfig_h__
 
 // ** (1)デフォルトスクリーンモード 0:シリアルターミナル 1:NTSC・OLED・TFTデバイススクリーン
-#define USE_SCREEN_MODE 1  // ※デバイススクリーン利用の場合、1を指定する (デフォルト:1)
+#define USE_SCREEN_MODE 0  // ※デバイススクリーン利用の場合、1を指定する (デフォルト:1)
 
 // ※次の(2)～(4)は排他選択(全て0または、どれか1つが1)
 
 // ** (2)NTSCビデオ出力利用有無 **********************************************
-#define USE_NTSC  1  // 0:利用しない 1:利用する (デフォルト:1)
+#define USE_NTSC  0  // 0:利用しない 1:利用する (デフォルト:1)
 
 // ** (3)OLED(SH1106/SSD1306/SSD1309) (SPI/I2C)OLEDモジュール利用有無*********
-#define USE_OLED     0 // 0:利用しない 1:利用する (デフォルト:0)
+#define USE_OLED    0 // 0:利用しない 1:利用する (デフォルト:0)
                        // 利用時は USE_NTSC を0にすること
  #define OLED_IFMODE 1 // OLED接続モード(0:I2C 1:SPI デオフォルト:1 )
  #define OLED_SCMODE 1 // スクリーンモード(1～6 デオフォルト:1 )
@@ -46,7 +46,7 @@
  #define TFT_RTMODE 3 // 画面の向き (0～3: デフォルト: 3)
 
 // 設定の矛盾補正
-#if USE_TFT  == 1 || USE_OLED
+#if USE_TFT  == 1 || USE_OLED == 1
  #define USE_NTSC 0
 #endif
 #if USE_NTSC == 0 && USE_TFT == 0 && USE_OLED == 0

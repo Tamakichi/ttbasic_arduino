@@ -1,4 +1,4 @@
-## 豊四季タイニーBASIC for Arduino STM32 V0.85β(17/10/09)
+## 豊四季タイニーBASIC for Arduino STM32 V0.85β(17/10/14)
 
 (New) V0.85β: OLED/TFTモジュール対応版(旧版はreleasesの方からダウンロードできます)   
 ※本バージョンはβ版です（マニュアルも作成中です^^）。旧版の方が安定動作します.
@@ -12,20 +12,28 @@
     関連情報 [電脳伝説 Vintagechips - 豊四季タイニーBASIC確定版](https://vintagechips.wordpress.com/2015/12/06/%E8%B1%8A%E5%9B%9B%E5%AD%A3%E3%82%BF%E3%82%A4%E3%83%8B%E3%83%BCbasic%E7%A2%BA%E5%AE%9A%E7%89%88/)
 
 STM32F103C8T6搭載のBlue Pillボード、Black Pillボードでの動作を確認しています. 
-
+機能等の詳細は[リファレンスマニュアル(nmanual.pdf)](https://github.com/Tamakichi/ttbasic_arduino/raw/ttbasic_arduino_ps2_ntsc/manual.pdf)に記載しています(ただし追加・修正中) .
 
 **V0.85βの追加・変更点**
 
 - OLEDディスプレイ対応
+
 - TFT(ILI9341)ディスプレイのグラフィック描画対応
+
 - PWM出力の16Hz未満の出力不具合対応
+
 - シリアルターミナルコンソール画面切替を(SCREEN0) からCONSOLE ON/OFFコマンドに変更
+  CONSOLE ON  ： シリアルコンソールに移行
+  CONSOLE OFF ： デバイスコンソール(NTSC、OLED、TFT)に移行
+  ※シリアルコンソールの状態でSCREENコマンドを実行した場合、デバイスコンソールに移行
 
+- ファームウェア（ブートローダ＋豊四季Tiny BASIC）の追加
 
+  マイコンボードにファームウェアを直接書き込むことで利用可能となりました（ただし、BluePill限定)
 
 ### 著作権について
 
-**「豊四季タイニーBASIC」**の著作権は開発者**のTetsuya Suzuki**氏にあります.  
+**「豊四季 Tiny BASIC」**の著作権は開発者**のTetsuya Suzuki**氏にあります.  
 プログラム利用については、オリジナル版の著作権者の配布条件に従うものとします.  
 著作権者の同意なしに経済的な利益を得てはいけません.  
 この条件のもとで、利用、複写、改編、再配布を認めます.  
@@ -128,23 +136,42 @@ RTC用バックアップ電池、SDカードモジュールも必要に応じて
 
   ![TFT](./image/14.jpg) 
 
-#### オリジナル版からの拡張機能
-
- NTSCビデオ出力対応  
- PS/2キーボード対応  
-OLED、TFT対応
- フルスリーンテキストエディタ編集対応  
- GPIO、I2C、シリアル通信対応  
- コマンド・関数の追加
-
-詳細は[リファレンスマニュアル(nmanual.pdf)](https://github.com/Tamakichi/ttbasic_arduino/raw/ttbasic_arduino_ps2_ntsc/manual.pdf)に  
-記載しています(ただし追加・修正中)  
-
 ### ファームウェア書込み手順(Windows 10の場合)  
-V0.83からはバイナリー形式のファームウェアを添付しました.  
+プロジェクトファイルの**binフォルダ**に次の２つのタイプのファームウェアを用意しています。
+
+1. ブートローダー無しファームウェア(バイナリー形式)
+
+　📁bin
+​	:black_medium_small_square:ttbasic_NTSC.bin					・・・ NTSCビデオ出力版
+​	:black_medium_small_square:ttbasic_OLED_SH1106_I2C.bin		・・・ OLED(SH1106 I2C接続)版
+​	:black_medium_small_square:ttbasic_OLED_SH1106_SPI.bin		・・・ OLED(SH1106 SPI接続)版
+​	:black_medium_small_square:ttbasic_OLED_SSD1306_I2C.bin		・・・ OLED(SSD1306/SSD1309 I2C接続)版
+​	:black_medium_small_square:ttbasic_OLED_SSD1306_SPI.bin		・・・ OLED(SSD1306/SSD1309 SPI接続)版
+​	:black_medium_small_square:ttbasic_Serial.bin					・・・ ターミナルコンソール版
+​	:black_medium_small_square:ttbasic_TFT.bin						・・・ TFT(ILI9341))版
+
+2. ブートローダー付きファームウェア(バイナリー形式)  	
+
+　📁bin
+​      📁PlusBootloader
+ 	  ◾boot_ttbasic_NTSC.bin				・・・ NTSCビデオ出力版
+​	  ◾boot_ttbasic_OLED_SH1106_I2C.bin	・・・ OLED(SH1106 I2C接続)版
+​	  ◾boot_ttbasic_OLED_SH1106_SPI.bin	・・・ OLED(SH1106 SPI接続)版
+​	  ◾boot_ttbasic_OLED_SSD1306_I2C.bin	・・・ OLED(SSD1306/SSD1309 I2C接続)版
+​	  ◾boot_ttbasic_OLED_SSD1306_SPI.bin	・・・ OLED(SSD1306/SSD1309 SPI接続)版
+​	  ◾boot_ttbasic_Serial.bin				・・・ ターミナルコンソール版
+​	  ◾boot_ttbasic_TFT.bin				・・・ TFT(ILI9341))版
+
 この書き込み方法について説明します.  
 
-#### 事前準備
+
+
+#### ブートローダー無しファームウェア(バイナリー形式)の書込み手順
+
+ブートローダーを利用したUSB経由によるファームウェアの書込みを行います。
+利用するマイコンボードにはArduino STM32用のブートローダーが書き込まれている必要があります。
+
+##### 事前準備
 
 「豊四季Tiny BASIC for Arduino STM32」ファームウェアの書込みには、  
 
@@ -160,7 +187,7 @@ V0.83からはバイナリー形式のファームウェアを添付しました
 - **Arduino STM32モジュールは下記の安定版 を使って下さい**
   https://github.com/rogerclarkmelbourne/Arduino_STM32/releases/tag/R20170323  
 
-#### 書込み作業
+##### 書込み作業
 
 1. ブロジェクト一式のダウンロード  
 
@@ -169,18 +196,119 @@ V0.83からはバイナリー形式のファームウェアを添付しました
 
    ​
 
-2. コマンドプロンプト上でコマンド実行  
+2. `ttwrite.bat`の修正
 
-   上記のフォルダ**bin**に移動し、次のコマンドを実行します.  
-   **ttwrite COM9** **C:\arduino\arduino-1.8.5**  
-   COM9はBlue PillボードのUSB-シリアルのポートを指定します.  
-   各自の環境に合わせて指定して下さい.  
-   コマンドプロンプト上で、MODE[ENter]でも調べられます.  
+   ```
+   set arduino_stm32="E:\Arduino\IDE\arduino-1.8.3"
+   set dev=COM4
+   ・・・
+   ```
 
-   2番目の引数**C:\arduino\arduino-1.8.5**は、
-   Arduino IDEがインストールされているディレクトリを指定します.  
-   Javaをインストールしている場合は省略可能です.  
+   `arduino_stm32`にArduino IDEのインストールパスを指定します。Javaをインストールしている場合は、ブランク指定：`set arduino_stm32=`でも可能です。
+
+   `dev`にマイコンボードのUSBポートが利用するシリアルポートを指定します。`COM`は必ず半角大文字で記述して下さい。
+
+   ​
+
+3. コマンドプロンプト上でコマンド実行  
+
+   コマンドプロンプトを実行します。
+   上記のフォルダ**bin**に移動し、次のコマンドを実行します。
+
+   ```
+   ttwrite ブートローダー無しファームウェアファイル
+   ```
+
+    指定する **ブートローダー無しファームウェアファイル** は各自の利用環境に合うものを指定して下さい。
+
+   `ttwrite ttbasic_TFT.bin`を実行した例：
+
    ![コマンドプロンプト](./image/09.png)  
+
+   コマンド実行しても書き込みが開始されない場合、ボード上のリセットボタンを押すことで、
+   ブートローダーが強制的に書込みモードに切り替わります。試してみて下さい。
+
+   ​
+
+   別の方法として、エクスプローラー上で`ttwrite.bat`アイコン上に**ブートローダー無しファームウェアファイル**のアイコンをドラック＆ドロップすることで書き込むことが出来ます。
+
+   ![コマンドプロンプト](./image/15.png) 
+
+#### ブートローダー付きファームウェア(バイナリー形式) の書込み手順
+
+ブートローダーと同じ方法で書き込みます。
+ここではstm32flash.exeコマンドを使ったシリアル接続による方法を説明します。
+
+![コマンドプロンプト](./image/16.jpg) 
+
+本方法及び本方法以外の方法、Windows以外の環境での書き込み方法については、
+下記のサイト掲載の手順を参考にして下さい。
+　DEKOのアヤシいお部屋-「STM32F103C8T6」 - http://ht-deko.com/arduino/stm32f103c8t6.html  
+
+##### 事前準備
+
+1. USB-シリアル変換モジュールを用意して下さい。
+
+2. 添付の書込み用バッチファイルttbtwrite.batを各自の環境に合わせて修正します。
+   📁bin
+   　📁PlusBootloader
+    　◾stm32flash.exe      ・・・  stm32flash(Arduino STM32に付属のもとの同じプログラムです)
+   　 ◾ttbtwrite.bat 　      ・・・  書込み用バッチファイル
+
+   ```
+   set dev=COM5
+   stm32flash.exe -b 115200 -f -v -w %1 %dev%
+   ```
+
+   devのシリアルポートの指定を各自の環境に合わせて変更して下さい。
+
+
+3. USBケーブルは電源供給を兼ねてパソコンに接続します。
+
+4. USB-シリアル変換モジュールとBlue Pillボードの結線
+
+   | USB-シリアル変換モジュール | Blue Pillボード |
+   | :-------------: | :----------: |
+   |       GND       |     GND      |
+   |       TXD       |     A10      |
+   |       RXD       |      A9      |
+
+   ​
+
+5. ジャンパースイッチの設定ボード上のBOOT0ジャンパを1に設定します。
+
+   ![コマンドプロンプト](./image/17.jpg) 
+
+   **BOOT0**：1
+   **BOOT1**：0
+
+
+
+##### 書込み作業
+
+コマンドプロンプトを実行します。
+**ttbtwrite.bat**のあるフォルダ**bin\PlusBootloader**に移動し、次のコマンドを実行します。
+
+```
+ttbtwrite ブートローダー付きファームウェアファイル
+```
+
+**ブートローダー付きファームウェアファイル**は同じフォルダ内にあります。
+各自の用途に合わせて指定して下さい。
+
+`ttbtwrite boot_ttbasic_Serial.bin` を実行した例：
+
+![コマンドプロンプト](./image/18.png) 
+
+書込みはエクスプローラー上で**ブートローダー付きファームウェアファイル**のアイコンを**ttbtwrite.bat**のアイコンにドラック＆ドロップする操作でも行うことが出来ます。
+
+![コマンドプロンプト](./image/19.png) 
+
+
+
+書込みが完了したら、BOOT0ジャンバを0に戻して下さい。
+
+
 
 ### スケッチの書込み手順
 
@@ -328,7 +456,6 @@ V0.83からはバイナリー形式のファームウェアを添付しました
 
 3. コンパイル&スケッチ書込み
 
-     
 
 ### サンプルプログラム
 #### ボード上のLEDの点滅  
