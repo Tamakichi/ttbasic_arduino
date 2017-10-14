@@ -21,6 +21,7 @@
 // 2017/08/28 CLVが2文字変数の初期化しない不具合の修正
 // 2017/08/28 PWM出力の16Hz未満の出力対応
 // 2017/10/09 定数ON,OFFの追加
+// 2017/10/14 TFT版のDWBMPの引数チェック不具合対応
 //
 
 #include <Arduino.h>
@@ -3623,8 +3624,8 @@ void idwbmp() {
     cip++;
 
     // 引数取得
-    if ( getParam(x,  0, ((tGraphicScreen*)sc)->getGWidth(), true) ) return;       // x
-    if ( getParam(y,  0, ((tGraphicScreen*)sc)->getGHeight(), false) ) return;      // y
+    if ( getParam(x,  0, ((tGraphicScreen*)sc)->getGWidth()-1, true) ) return;       // x
+    if ( getParam(y,  0, ((tGraphicScreen*)sc)->getGHeight()-1, false) ) return;      // y
     if (*cip == I_COMMA) {
        cip++;
        if ( getParam(bx, 0, 32767, true) ) return;   // bx
@@ -3632,7 +3633,7 @@ void idwbmp() {
        if ( getParam(w,  0, ((tGraphicScreen*)sc)->getGWidth(), true) ) return;       // w
        if ( getParam(h,  0, ((tGraphicScreen*)sc)->getGHeight(), false) ) return;     // h
     } else {
-      bx = 0; by = 0; w = ((tGraphicScreen*)sc)->getGWidth(); h = ((tGraphicScreen*)sc)->getGHeight();
+      bx = 0; by = 0; w = ((tGraphicScreen*)sc)->getGWidth()-x; h = ((tGraphicScreen*)sc)->getGHeight()-y;
     }
     // サイズチェック
     if (x+w  > ((tGraphicScreen*)sc)->getGWidth() || y+h > ((tGraphicScreen*)sc)->getGHeight()) {
