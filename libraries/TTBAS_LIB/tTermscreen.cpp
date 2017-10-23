@@ -106,6 +106,7 @@ uint8_t tTermscreen::isKeyIn() {
     else
        return 0;
 	}
+  return 0;
 }
 
 // 文字入力
@@ -126,6 +127,7 @@ int16_t tTermscreen::peek_ch() {
     return Serial.peek();
  if(serialMode == 1)
     return Serial1.peek();
+  return 0;
 }
 
 // カーソルの表示/非表示
@@ -147,7 +149,7 @@ void tTermscreen::setColor(uint16_t fc, uint16_t bc) {
   static const uint16_t tbl_bcolor[]  =
      { B_BLACK,B_RED,B_GREEN,B_BROWN,B_BLUE,B_MAGENTA,B_CYAN,B_WHITE,B_YELLOW};
 
-  if ( (fc >= 0 && fc <= 8) && (bc >= 0 && bc <= 8) )
+  if ( fc <= 8 && bc <= 8 )
      attrset(tbl_fcolor[fc]|tbl_bcolor[bc]);  // 依存関数
 }
 
@@ -156,7 +158,7 @@ void tTermscreen::setAttr(uint16_t attr) {
   static const uint16_t tbl_attr[]  =
     { A_NORMAL, A_UNDERLINE, A_REVERSE, A_BLINK, A_BOLD };
   
-  if (attr >= 0 && attr <= 4)
+  if ( attr <= 4 )
      attrset(tbl_attr[attr]);  // 依存関数
 }
 

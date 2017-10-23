@@ -25,10 +25,10 @@ void tGraphicScreen::Serial_Ctrl(int16_t ch) {
   char* s=NULL;
   switch(ch) {
     case KEY_BACKSPACE:
-     s = "\x08\x1b[P";
+    s = (char*)"\x08\x1b[P";
      break;
     case SC_KEY_CTRL_L:
-     s = "\x1b[2J\x1b[H";
+     s = (char*)"\x1b[2J\x1b[H";
      break;
   }
   if(s) {

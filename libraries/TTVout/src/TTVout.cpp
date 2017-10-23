@@ -217,7 +217,9 @@ void TTVout::cls() {
 
 // 直線を引く
 template <typename T> int _v_sgn(T val) {return (T(0) < val) - (val < T(0));}
+#ifndef abs
 #define abs(a)  (((a)>0) ? (a) : -(a))
+#endif
 #define swap(a,b) tmp =a;a=b;b=tmp
 void TTVout::draw_line(int16_t x0, int16_t y0, int16_t x1, int16_t y1, uint8_t dt){
    int dx=abs(x1-x0), dy=abs(y1-y0),sx=_v_sgn(x1-x0),sy=_v_sgn(y1-y0);
@@ -885,7 +887,7 @@ void TTVout::tone(uint16_t freq, uint16_t duration) {
     uint32_t f =1000000/(uint16_t)freq;
 #if F_CPU == 72000000L
   	Timer4.setPrescaleFactor(72); // システムクロックを1/72に分周
-#else if  F_CPU == 48000000L
+#elif  F_CPU == 48000000L
   	Timer4.setPrescaleFactor(48); // システムクロックを1/48に分周
 #endif
   	Timer4.setOverflow(f);

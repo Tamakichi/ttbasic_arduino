@@ -82,6 +82,7 @@ uint8_t tTVscreen::drawCurs(uint8_t x, uint8_t y) {
   for (uint16_t i = 0; i < f_height; i++)
      for (uint16_t j = 0; j < f_width; j++)
        this->TV.set_pixel(x*f_width+j, y*f_height+i,2);
+  return 0;
 }
 
 //

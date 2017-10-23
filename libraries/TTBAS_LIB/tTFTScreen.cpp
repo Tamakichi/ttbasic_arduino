@@ -102,6 +102,7 @@ uint8_t tTFTScreen::drawCurs(uint8_t x, uint8_t y) {
 #if TFT_FONT_MODE > 0
   tft->drawChar(x*f_width,y*f_height, c, ILI9341_BLACK, ILI9341_WHITE, TFT_FONT_MODE);
 #endif
+  return 0;
 }
 
 // 文字の表示

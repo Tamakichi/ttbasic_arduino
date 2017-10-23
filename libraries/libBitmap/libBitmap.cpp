@@ -234,7 +234,7 @@ void clearBitmapAt(uint8_t* bmp, uint16_t w, uint16_t h, int16_t x, int16_t y, u
 // 1文字分スクロール挿入表示
 void scrollInFont(uint8_t*dst, uint8_t dw, uint8_t dh, uint8_t *src, uint8_t sw, uint8_t sh, uint16_t dt, uint8_t mode) {
   int16_t px = 0,py = 0;
-  int16_t s;
+  int16_t s=0;
 
   if (mode & B11) {
     s = sw;

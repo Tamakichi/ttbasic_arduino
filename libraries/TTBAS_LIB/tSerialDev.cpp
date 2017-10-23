@@ -36,6 +36,7 @@ int16_t tSerialDev::Serial_read() {
     return Serial1.read();
   else if (serialMode == 1) 
     return Serial.read();
+  return 0;
 }
 
 // シリアル改行出力 
@@ -55,6 +56,7 @@ uint8_t tSerialDev::Serial_available() {
      return Serial1.available();
   else if (serialMode == 1) 
      return Serial.available();
+  return 0;
 }
 
 // シリアルポートモード設定 

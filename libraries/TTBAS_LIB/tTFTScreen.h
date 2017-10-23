@@ -59,9 +59,9 @@ class tTFTScreen :public tGraphicScreen {
 	
 	 // グラフィック描画
 	void  ginit() {};
-	inline uint8_t *getfontadr(){};// フォントアドレスの参照
-    uint8_t* getGRAM(){};
-	  uint16_t getGRAMsize(){};
+	inline uint8_t *getfontadr(){ return 0;};// フォントアドレスの参照
+    uint8_t* getGRAM(){return 0;};
+	  uint16_t getGRAMsize(){return 0;};
     void     pset(int16_t x, int16_t y, uint16_t c);
     void     line(int16_t x1, int16_t y1, int16_t x2, int16_t y2, uint16_t c);
     void     circle(int16_t x, int16_t y, int16_t r, uint16_t c, int8_t f);
@@ -69,8 +69,8 @@ class tTFTScreen :public tGraphicScreen {
     void     bitmap(int16_t x, int16_t y, uint8_t* adr, uint16_t index, uint16_t w, uint16_t h, uint16_t d, uint8_t rgb=0);
     void     gscroll(int16_t x, int16_t y, int16_t w, int16_t h, uint8_t mode){};
     void     cscroll(int16_t x, int16_t y, int16_t w, int16_t h, uint8_t d) {};
-    int16_t  gpeek(int16_t x, int16_t y){};
-    int16_t  ginp(int16_t x, int16_t y, int16_t w, int16_t h, uint8_t c){};
+    int16_t  gpeek(int16_t x, int16_t y){return 0;};
+    int16_t  ginp(int16_t x, int16_t y, int16_t w, int16_t h, uint8_t c){return 0;};
     void     set_gcursor(uint16_t, uint16_t);
     void     gputch(uint8_t c);
     uint8_t  bmpDraw(char *filename, uint8_t x, uint16_t y, uint16_t bx=0, uint16_t by=0, uint16_t bw=0, uint16_t bh=0);

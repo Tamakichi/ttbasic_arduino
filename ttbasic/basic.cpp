@@ -22,6 +22,10 @@
 // 2017/08/28 PWM出力の16Hz未満の出力対応
 // 2017/10/09 定数ON,OFFの追加
 // 2017/10/14 TFT版のDWBMPの引数チェック不具合対応
+// 2017/10/15 コンパイルワーニング対応（未使用変数の削除、キャスト、定数重定義）
+// 2017/10/17 仮想EEPROMとプログラム保存領域の競合不具合対応
+// 2017/10/23 OLEDディスプレイで表示が反映されない不具合対応(=>iprint()の修正）
+// 2017/10/23 FILESでフラッシュメモリリスト表示の範囲指定引数追加
 //
 
 #include <Arduino.h>
@@ -123,15 +127,19 @@ sdfiles fs;
 #define FLASH_PAGE_SIZE        1024
 #define FLASH_START_ADDRESS    ((uint32_t)(0x8000000))
 #define FLASH_PAGE_NUM         128     // 全ページ数
-#define FLASH_PRG_START_PAGE   (FLASH_PAGE_NUM-FLASH_PAGE_PAR_PRG*FLASH_SAVE_NUM)  // 利用開始ページ
+#define FLASH_PRG_START_PAGE   (FLASH_PAGE_NUM-FLASH_PAGE_PAR_PRG*FLASH_SAVE_NUM-FLATH_EEPROM_USE)  // 利用開始ページ
 #define FLASH_PAGE_PAR_PRG     4       // 1プログラム当たりの利用ページ数
 #define FLASH_SAVE_NUM         8       // 保存可能数
+#define FLATH_EEPROM_USE       2       // 仮想EEPROM利用ページ数
 
 // **** EEPROMエミュレーション ******
 #include <EEPROM.h>
 extern EEPROMClass EEPROM;
-#define EEPROM_PAGE0 (((uint32_t)(0x8000000))+(FLASH_PRG_START_PAGE-2)*FLASH_PAGE_SIZE)
-#define EEPROM_PAGE1 (((uint32_t)(0x8000000))+(FLASH_PRG_START_PAGE-1)*FLASH_PAGE_SIZE)
+//#define EEPROM_PAGE0 (((uint32_t)(0x8000000))+(FLASH_PRG_START_PAGE-2)*FLASH_PAGE_SIZE)
+//#define EEPROM_PAGE1 (((uint32_t)(0x8000000))+(FLASH_PRG_START_PAGE-1)*FLASH_PAGE_SIZE)
+#define EEPROM_PAGE0 (FLASH_START_ADDRESS+(FLASH_PAGE_NUM-2)*FLASH_PAGE_SIZE)
+#define EEPROM_PAGE1 (FLASH_START_ADDRESS+(FLASH_PAGE_NUM-1)*FLASH_PAGE_SIZE)
+
 
 // *** システム設定関連 **************
 #define CONFIG_NTSC 65534  // EEPROM NTSC設定値保存番号
@@ -538,8 +546,8 @@ inline void cleartbuf() {
 //  戻り値 :  NULL以外 実アドレス、NULL 範囲外
 //
 uint8_t* v2realAddr(uint16_t vadr) {
-  uint8_t* radr; 
-  if ( (vadr >= 0) && (vadr < sc->getScreenByteSize())) {   // VRAM領域
+  uint8_t* radr = NULL; 
+  if (vadr < sc->getScreenByteSize()) {   // VRAM領域
     radr = vadr+sc->getScreen();
   } else if ((vadr >= V_VAR_TOP) && (vadr < V_ARRAY_TOP)) { // 変数領域
     radr = vadr-V_VAR_TOP+(uint8_t*)var;
@@ -843,7 +851,7 @@ int16_t getnum() {
 int16_t lookup(char* str, uint16_t len) {
   int16_t fd_id;
   int16_t prv_fd_id = -1;
-  int16_t fd_len,prv_len;
+  uint16_t fd_len,prv_len;
 
   for (uint16_t j = 1; j <= len; j++) {
     fd_id = -1;
@@ -882,7 +890,6 @@ uint8_t toktoi() {
   int16_t i;
   int16_t key;
   uint8_t len = 0;  // 中間コードの並びの長さ
-  char* pkw = 0;          // ひとつのキーワードの内部を指すポインタ
   char* ptok;             // ひとつの単語の内部を指すポインタ
   char* s = lbuf;         // 文字列バッファの内部を指すポインタ
   char c;                 // 文字列の括りに使われている文字（「"」または「'」）
@@ -1161,7 +1168,7 @@ DONE:
 uint16_t countLines(int16_t st=0, int16_t ed=32767) {
   unsigned char *lp; //ポインタ
   uint16_t cnt = 0;  
-  uint16_t lineno;
+  int16_t lineno;
   for (lp = listbuf; *lp; lp += *lp)  {
     lineno = getlineno(lp);
     if (lineno < 0)
@@ -1983,8 +1990,6 @@ void isave() {
   int16_t prgno = 0;
   int16_t ascii = 1;
   uint32_t flash_adr[FLASH_PAGE_PAR_PRG];
-  uint8_t* sram_adr;
-  //char fname[64];
   char* fname;
   uint8_t mode = 0;
   int8_t rc;
@@ -2044,7 +2049,6 @@ void isave() {
 // フラッシュメモリ上のプログラム消去 ERASE[プログラム番号[,プログラム番号]
 void ierase() {
   int16_t  s_prgno, e_prgno;
-  uint8_t* sram_adr;
   uint32_t flash_adr;
 
   if ( getParam(s_prgno, 0, FLASH_SAVE_NUM-1, false) ) return;
@@ -2191,8 +2195,10 @@ void ifiles() {
   char* wcard = NULL;
   char* ptr = NULL;
   uint8_t flgwildcard = 0;
+  int16_t StartNo, endNo; // プログラム番号開始、終了
   int16_t rc;
 
+  // 引数がファイル名（文字列関数、文字列）の場合SDカードの一覧表示
   if ( *cip == I_STR || *cip == I_STRREF || *cip == I_CHR ||
        *cip == I_HEX || *cip == I_BIN || *cip == I_DMP
   ) {
@@ -2200,7 +2206,7 @@ void ifiles() {
       return;
     }  
 
-   for (int8_t i = 0; i < strlen(fname); i++) {
+   for (uint8_t i = 0; i < strlen(fname); i++) {
       if (fname[i] >='a' && fname[i] <= 'z') {
          fname[i] = fname[i] - 'a' + 'A';
       }
@@ -2233,29 +2239,49 @@ void ifiles() {
       err = ERR_FILE_OPEN;
     }    
 #endif
-  } else if (*cip == I_EOL || *cip == I_COLON) {  
-    // フラッシュメモリのプログラムリスト
-    save_clp = clp;
-    for (uint8_t i=0 ; i < FLASH_SAVE_NUM; i++) {    
-      flash_adr = FLASH_START_ADDRESS + FLASH_PAGE_SIZE*(FLASH_PRG_START_PAGE+ i*FLASH_PAGE_PAR_PRG);
-      putnum(i,1);
-      c_puts(":");
-      if ( *((uint8_t*)flash_adr) == 0xff && *((uint8_t*)flash_adr+1) == 0xff) {
-        c_puts("(none)");        
-      } else {
-        clp = (uint8_t*)flash_adr;
-        if (*clp) {
-          //putnum(getlineno(clp), 0); // 行番号を表示
-          //c_puts(" ");
-          putlist(clp + 3);          // 行番号より後ろを文字列に変換して表示
-        } else {
-          c_puts("(none)");        
-        }
-      } 
-      newline();
+    return;
+  }
+  
+  // フラッシュメモリのプログラムリスト
+  
+  // 引数が数値または、無しの場合、フラッシュメモリのリスト表示
+  if (*cip == I_EOL || *cip == I_COLON) {
+   StartNo = 0;
+   endNo = FLASH_SAVE_NUM-1;
+  } else {
+   if ( getParam(StartNo, 0, FLASH_SAVE_NUM-1, false) ) return;
+   // 第2引数チェック
+   if (*cip == I_COMMA) {
+     cip++;
+     if ( getParam(endNo, false) ) return;  
+    } else {
+     endNo = StartNo;
     }
-    clp = save_clp;
-  }  
+    if (StartNo > endNo) {
+      err = ERR_VALUE;
+      return;    
+    }
+  }     
+  save_clp = clp;
+  for (uint8_t i=StartNo ; i <= endNo; i++) {    
+    flash_adr = FLASH_START_ADDRESS + FLASH_PAGE_SIZE*(FLASH_PRG_START_PAGE+ i*FLASH_PAGE_PAR_PRG);
+    putnum(i,1);
+    c_puts(":");
+    if ( *((uint8_t*)flash_adr) == 0xff && *((uint8_t*)flash_adr+1) == 0xff) {
+      c_puts("(none)");        
+    } else {
+      clp = (uint8_t*)flash_adr;
+      if (*clp) {
+        //putnum(getlineno(clp), 0); // 行番号を表示
+        //c_puts(" ");
+        putlist(clp + 3);            // 行番号より後ろを文字列に変換して表示
+      } else {
+        c_puts("(none)");        
+      }
+    } 
+    newline();
+  }
+  clp = save_clp;
 }
 
 // 画面クリア
@@ -2331,7 +2357,7 @@ int16_t iinkey() {
 
 // メモリ参照　PEEK(adr[,bnk])
 int16_t ipeek() {
-  int16_t value, vadr;
+  int16_t value =0, vadr;
   uint8_t* radr;
 
   if (checkOpen()) return 0;
@@ -2416,7 +2442,6 @@ void Fixed_pinMode(uint8 pin, WiringPinMode mode) {
 void igpio() {
   int16_t pinno;       // ピン番号
   WiringPinMode pmode; // 入出力モード
-  uint8_t flgok = false;
 
   // 入出力ピンの指定
   if ( getParam(pinno, 0, I_PC15-I_PA0, true) ) return; // ピン番号取得
@@ -2829,10 +2854,10 @@ void igetDate() {
   st = localtime(&tt);  // 時刻型変換
 
   int16_t v[] = {
-      st->tm_year+1900, 
-      st->tm_mon+1,
-      st->tm_mday,
-      st->tm_wday
+   (int16_t)st->tm_year+1900, 
+   (int16_t)st->tm_mon+1,
+   (int16_t)st->tm_mday,
+   (int16_t)st->tm_wday
   };
 
   for (uint8_t i=0; i <4; i++) {    
@@ -2876,9 +2901,9 @@ void igetTime() {
   st = localtime(&tt);  // 時刻型変換
 
   int16_t v[] = {
-      st->tm_hour,        // 時
-      st->tm_min,         // 分
-      st->tm_sec          // 秒
+    (int16_t)st->tm_hour,        // 時
+    (int16_t)st->tm_min,         // 分
+    (int16_t)st->tm_sec          // 秒
   };
 
   for (uint8_t i=0; i <3; i++) {    
@@ -2921,19 +2946,19 @@ void idate() {
    tt = rtc.getTime();   // 時刻取得
    st = localtime(&tt);  // 時刻型変換
    
-   putnum(st->tm_year+1900, -4);
+   putnum((int16_t)st->tm_year+1900, -4);
    c_putch('/');
-   putnum(st->tm_mon+1, -2);
+   putnum((int16_t)st->tm_mon+1, -2);
    c_putch('/');
-   putnum(st->tm_mday, -2);
+   putnum((int16_t)st->tm_mday, -2);
    c_puts(" [");
-   c_puts(wday[st->tm_wday]);
+   c_puts(wday[(int16_t)st->tm_wday]);
    c_puts("] ");
-   putnum(st->tm_hour, -2);
+   putnum((int16_t)st->tm_hour, -2);
    c_putch(':');
-   putnum(st->tm_min, -2);
+   putnum((int16_t)st->tm_min, -2);
    c_putch(':');
-   putnum(st->tm_sec, -2);
+   putnum((int16_t)st->tm_sec, -2);
    newline();  
 #else
   err = ERR_SYNTAX;
@@ -2984,7 +3009,7 @@ int16_t ieepread(uint16_t addr) {
   uint16_t Status;
   uint16_t data;
 
-  if (addr < 0 || addr > 32767) {
+  if (addr > 32767) {
     err = ERR_VALUE;
     return 0;
  }
@@ -3303,7 +3328,6 @@ void inotone() {
 // GPEEK(X,Y)関数の処理
 int16_t igpeek() {
 #if USE_NTSC == 1 || USE_OLED == 1
-  short value; // 値
   short x, y;  // 座標
   if (scmode) {
     if (checkOpen()) return 0;
@@ -3413,8 +3437,9 @@ void iprint(uint8_t devno=0,uint8_t nonewln=0) {
     case I_SHARP: //「#
       cip++;
       len = iexp(); //桁数を取得
-      if (err)
-        return; 
+      if (err) {
+        return;
+      }
       break; 
 
     case I_CHR: // CHR$()関数
@@ -3430,7 +3455,8 @@ void iprint(uint8_t devno=0,uint8_t nonewln=0) {
     case I_STRREF:cip++; istrref(devno); break; // STR$()関数
     case I_ELSE:        // ELSE文がある場合は打ち切る
        newline(devno);
-       return;
+       //return;
+       goto END_PRINT;
        break;
        
     default: //以上のいずれにも該当しなかった場合（式とみなす）
@@ -3442,20 +3468,23 @@ void iprint(uint8_t devno=0,uint8_t nonewln=0) {
       putnum(value, len,devno); // 値を表示
       break;
     } //中間コードで分岐の末尾
+    
     if (err)  {
         newline(devno);
         return;
     }
-    if (nonewln && *cip == I_COMMA) // 文字列引数流用時はここで終了
+    if (nonewln && *cip == I_COMMA) { // 文字列引数流用時はここで終了
         return;
-    
+    }
     if (*cip == I_ELSE) {
         newline(devno); 
-        return;
-    } else if (*cip == I_COMMA|*cip == I_SEMI) { // もし',' ';'があったら
+        goto END_PRINT;
+        //return;
+    } else if (*cip == I_COMMA || *cip == I_SEMI) { // もし',' ';'があったら
       cip++;
       if (*cip == I_COLON || *cip == I_EOL || *cip == I_ELSE) //もし文末なら      
-        return; 
+        //return; 
+        goto END_PRINT;
     } else {    //',' ';'がなければ
       if (*cip != I_COLON && *cip != I_EOL) { //もし文末でなければ
         err = ERR_SYNTAX;
@@ -3464,8 +3493,15 @@ void iprint(uint8_t devno=0,uint8_t nonewln=0) {
       }
     }
   }
-  if (!nonewln)
-    newline(devno); 
+  if (!nonewln) {
+    newline(devno);
+  }
+END_PRINT:
+  if (USE_OLED && devno == 0) {
+#if USE_OLED == 1
+    ((tOLEDScreen*)sc)->update();
+#endif
+  }
 }
 
 // GPRINT x,y,..
@@ -3552,7 +3588,7 @@ void idwbmp() {
 #if USE_NTSC == 1 || USE_OLED == 1
   int16_t x,y,bx,by,w, h, mode;
   uint8_t* ptr;
-  uint8_t rc; 
+  uint8_t rc = 0; 
   int16_t bw;
   char* fname;
   if (scmode) {
@@ -3894,7 +3930,7 @@ void  icat() {
   uint8_t c;
 
   char* fname;
-  uint8_t rc;
+  int16_t rc;
 
   if(!(fname = getParamFname())) {
     return;
@@ -4038,7 +4074,7 @@ void iscreen() {
 // ※ターミナルモードの場合、
 void iconsole() {
   int16_t m,rt;
-  int8_t prv_m;
+  static int8_t prv_m = DEF_SMODE;
 
 #if USE_TFT == 1
   rt = TFT_RTMODE;
@@ -4143,7 +4179,7 @@ void iconsole() {
 //
 uint8_t ilrun() {
   int16_t prgno, lineno = -1;
-  uint8_t* tmpcip, *lp;
+  uint8_t *lp;
   //char fname[SD_PATH_LEN];  // ファイル名
   uint8_t label[34];
   uint8_t len;
@@ -4332,7 +4368,6 @@ void error(uint8_t flgCmd = false) {
 // Get value
 int16_t ivalue() {
   int16_t value; // 値
-  uint8_t i;   // 文字数
 
   switch (*cip++) { //中間コードで分岐
 
@@ -4753,7 +4788,7 @@ int16_t getPrevLineNo(int16_t lineno) {
 
 // 指定した行の次の行番号を取得する
 int16_t getNextLineNo(int16_t lineno) {
-  uint8_t* lp, *prv_lp = NULL;
+  uint8_t* lp;
   int16_t rc = -1;
   
   lp = getlp(lineno); 
@@ -4789,12 +4824,12 @@ void iinfo() {
   free(tmp);
 
   // スタック領域先頭アドレスの表示
-  c_puts("stack top:");
+  c_puts("Stack Top:");
   putHexnum((int16_t)(adr>>16),4);putHexnum((int16_t)(adr&0xffff),4);
   newline();
   
   // ヒープ領域先頭アドレスの表示
-  c_puts("heap top :");
+  c_puts("Heap Top :");
   putHexnum((int16_t)(hadr>>16),4);putHexnum((int16_t)(hadr&0xffff),4);
   newline();
 
@@ -4802,6 +4837,13 @@ void iinfo() {
   c_puts("SRAM Free:");
   putnum((int16_t)(adr-hadr),0);
   newline();
+  
+  // EEPROM領域
+  c_puts("EPAGE0:");putHexnum((int16_t)(EEPROM_PAGE0>>16),4);putHexnum((int16_t)(EEPROM_PAGE0&0xffff),4);;newline();
+  c_puts("EPAGE1:");putHexnum((int16_t)(EEPROM_PAGE1>>16),4);putHexnum((int16_t)(EEPROM_PAGE1&0xffff),4);;newline();
+  c_puts("START_PAGE:");putnum(FLASH_PRG_START_PAGE,2);newline();
+
+  
 }
 
 // ラベル
@@ -5137,7 +5179,6 @@ unsigned char* iexe() {
 //Command precessor
 uint8_t icom() {
   uint8_t rc = 1;
-  uint8_t v;
   cip = ibuf;          // 中間コードポインタを中間コードバッファの先頭に設定
 
   switch (*cip++) {    // 中間コードポインタが指し示す中間コードによって分岐
@@ -5197,7 +5238,7 @@ void basic() {
   EEPROM.PageBase1 = EEPROM_PAGE1;
   EEPROM.PageSize  = FLASH_PAGE_SIZE;
   //EEPROM.init();
-  
+
   // 環境設定
   loadConfig();
 
@@ -5267,7 +5308,6 @@ void basic() {
   if (CONFIG.STARTPRG >=0  && loadPrg(CONFIG.STARTPRG) == 0) {
     sc->show_curs(0);
     irun();        // RUN命令を実行
-    sc->show_curs(1);
     newline();     // 改行
     c_puts("Autorun No.");putnum(CONFIG.STARTPRG,0);c_puts(" stopped.");
     newline();     // 改行

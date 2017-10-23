@@ -63,9 +63,8 @@ uint32_t sdbitmap::read32() {
 //			2:フォーマットエラー
 // 
 uint8_t	sdbitmap::open() {
-  uint8_t  bmpDepth;              // Bit depth (currently must be 24)
   uint32_t tmp_val;
-
+  uint8_t  bmpDepth;          // Bit depth (currently must be 24)
   _flip    = true;      		  // BMP is stored bottom-to-top
 
   // ファイルオープン
@@ -345,7 +344,6 @@ uint8_t sdbitmap::getByte(uint16_t x, uint16_t y) {
 uint8_t sdbitmap::getBitmapEx(uint8_t*bmp, uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint8_t mode) {
   // ラインループ
   uint16_t ptr = 0;
-  uint8_t d;
   uint8_t bit_w = w % 8;
   for (uint16_t row = y; row < y+h ; row++ ) { 
     for (uint16_t col = x; col < x + w ; col += 8 ) {

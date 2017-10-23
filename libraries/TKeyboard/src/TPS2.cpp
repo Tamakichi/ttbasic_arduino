@@ -38,7 +38,7 @@ volatile static nvic_irq_num  _irq_num;   // 割り込みベクター番号
 // 戻り値 割り込み番号
 //
 static nvic_irq_num exti2irqNum(exti_num n) {
-  nvic_irq_num irqnum;
+  nvic_irq_num irqnum = NVIC_EXTI0;
   switch(n) {
     case EXTI0: irqnum = NVIC_EXTI0; break;
     case EXTI1: irqnum = NVIC_EXTI1; break;
@@ -503,12 +503,11 @@ uint8_t TPS2::enqueue(uint8_t data) {
   uint16_t n = (_q_top + 1) % QUEUESIZE;
   if (_q_top+1 != _q_btm) {
 	_queue[_q_top] = data;
-	_q_top = n;	
+	_q_top = n;    
   } else {
     return 1;
-    _q_s = 0;
-    return 0;
   }
+  return 0;
 }
 
 // キューからの取出し

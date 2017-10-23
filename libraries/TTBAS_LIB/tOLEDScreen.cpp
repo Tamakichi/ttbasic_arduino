@@ -118,6 +118,7 @@ uint8_t tOLEDScreen::drawCurs(uint8_t x, uint8_t y) {
   else
 	  drawBitmap_x2(x*f_width,y*f_height,font+3+((uint16_t)c)*8,f_width/fontEx, f_height/fontEx, bgcolor, fontEx);
   this->oled->display();
+  return 0;
 }
 
 // 文字の表示
@@ -339,7 +340,6 @@ void tOLEDScreen::cscroll(int16_t x, int16_t y, int16_t w, int16_t h, uint8_t d)
 
 static const uint8_t remap[4][4] = { {0,1,2,3},{2,3,1,0},{1,0,3,2},{3,2,0,1}};
 void tOLEDScreen::gscroll(int16_t x, int16_t y, int16_t w, int16_t h, uint8_t mode) {
-  int16_t tmp;
   mode = remap[this->oled->getRotation()][mode]; // 画面の向きによるスクロール方向補正
   switch (this->oled->getRotation()) {
     case 1:
@@ -362,9 +362,6 @@ void tOLEDScreen::gscroll(int16_t x, int16_t y, int16_t w, int16_t h, uint8_t mo
   uint8_t* bmp = this->getGRAM();     // フレームバッファ参照位置 
   uint16_t top_by = y/8;              // 縦スクロール開始バイト位置
   uint16_t end_by = (y+h+7)/8-1;      // 縦スクロール終了バイト位置
-  
-  uint16_t bh = h/8;                  // 縦バイト数
-  uint16_t by = y/8;                  // 縦バイト位置
   uint8_t prv_bit;                    // 直前のドット
   uint8_t d,d1,d2,msk;                // 取り出しデータ
   uint16_t addr;                      // データアドレス

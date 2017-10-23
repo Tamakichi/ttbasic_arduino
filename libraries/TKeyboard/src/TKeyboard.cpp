@@ -262,7 +262,7 @@ uint8_t TKeyboard::findcode(uint8_t c)  {
 uint16_t TKeyboard::scanToKeycode() {
   static uint8_t state = STS_SYOKI;
   static uint8_t scIndex = 0;
-  uint16_t c,c2, code = 0;
+  uint16_t c, code = 0;
 
   while(pb.available()) {
     c = pb.dequeue();     // キューから1バイト取り出し

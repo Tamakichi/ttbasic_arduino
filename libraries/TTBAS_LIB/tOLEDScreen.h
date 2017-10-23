@@ -65,7 +65,7 @@ class tOLEDScreen :public tGraphicScreen {
 	
 	 // グラフィック描画
 	void  ginit() {};
-	inline uint8_t *getfontadr(){};// フォントアドレスの参照
+	inline uint8_t *getfontadr(){return 0;};// フォントアドレスの参照
     uint8_t* getGRAM();
 	  uint16_t getGRAMsize();
     void     update();

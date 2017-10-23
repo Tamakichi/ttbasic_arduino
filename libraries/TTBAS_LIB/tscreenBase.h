@@ -2,6 +2,7 @@
 // スクリーン制御基本クラス ヘッダーファイル
 // 作成日 2017/06/27 by たま吉さん
 // 修正日 2017/09/15 IsCurs()  カーソル表示有無の取得の追加
+// 修正日 2017/10/15 定義競合のためKEY_F1、KEY_F(n)をKEY_Fn1、KEY_Fn(n)変更
 
 #ifndef __tscreenBase_h__
 #define __tscreenBase_h__
@@ -27,8 +28,8 @@
 #define KEY_PPAGE     0x88   // [PageUp] key
 #define KEY_END       0x89   // [End] key
 #define KEY_BTAB      0x8A   // [Back tab] key
-#define KEY_F1                  0x8B            // Function key F1
-#define KEY_F(n)                (KEY_F1+(n)-1)  // Space for additional 12 function keys
+#define KEY_Fn1       0x8B   // Function key F1
+#define KEY_Fn(n)     (KEY_Fn1+(n)-1)  // Space for additional 12 function keys
 
 // コントロールキーコードの定義
 #define SC_KEY_CTRL_L   12  // 画面を消去
@@ -43,7 +44,7 @@
 
 class tscreenBase : public tSerialDev {
   protected:
-    uint8_t* screen = NULL;     // スクリーン用バッファ
+    uint8_t* screen;            // スクリーン用バッファ
     uint16_t width;             // スクリーン横サイズ
     uint16_t height;            // スクリーン縦サイズ
     uint16_t maxllen;           // 1行最大長さ
@@ -53,7 +54,7 @@ class tscreenBase : public tSerialDev {
     uint8_t flgIns;             // 編集モード
     uint8_t dev;                // 文字入力デバイス
     uint8_t flgCur;             // カーソル表示設定
-    uint8_t flgExtMem = NULL;   // 外部確保メモリ利用フラグ
+    uint8_t flgExtMem;          // 外部確保メモリ利用フラグ
 	
 protected:
     virtual void INIT_DEV() = 0;                              // デバイスの初期化
