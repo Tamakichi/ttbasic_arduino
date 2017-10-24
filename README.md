@@ -11,7 +11,7 @@ V0.85β版修正履歴 2017/10/24
 
 ![サンプル画像](./image/03.jpg)  ![サンプル画像](./image/10.jpg) ![サンプル画像](./image/11.jpg)  
 
-本プログラムは、下記オリジナル版を[Arduino STM32]  (https://github.com/rogerclarkmelbourne/Arduino_STM32)向けに移植・機能版です.  
+本プログラムは、下記オリジナル版を[Arduino STM32](https://github.com/rogerclarkmelbourne/Arduino_STM32) 向けに移植・機能拡張版です.  
 
 - オリジナル版配布サイト  
    https://github.com/vintagechips/ttbasic_arduino  
