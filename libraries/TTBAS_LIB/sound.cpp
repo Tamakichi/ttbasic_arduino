@@ -5,7 +5,7 @@
 // 作成日 2017/08/25 by たま吉さん (tvutil.cpp からの移行)
 //
 
-#include <Arduino.h>
+#include "sound.h"
 const int pwmOutPin = PB9;      // tone用 PWM出力ピン
 
 //

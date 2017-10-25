@@ -26,6 +26,8 @@
 // 2017/10/17 仮想EEPROMとプログラム保存領域の競合不具合対応
 // 2017/10/23 OLEDディスプレイで表示が反映されない不具合対応(=>iprint()の修正）
 // 2017/10/23 FILESでフラッシュメモリリスト表示の範囲指定引数追加
+// 2017/10/23 OLEDのコンソールモード時表示不具合の対応
+// 2017/10/25 sound.hの定義により、tone関連のプロトタイプ宣言を削除
 //
 
 #include <Arduino.h>
@@ -35,6 +37,7 @@
 #include "ttconfig.h"
 #include "tscreenBase.h"
 #include "tTermscreen.h"
+#include "sound.h"        // サウンド再生(Timer4 PWM端子 PB9を利用）
 
 #define STR_EDITION "Arduino STM32"
 #define STR_VARSION "Edition V0.85"
@@ -66,24 +69,24 @@ uint16_t f_height = *(ttbasic_font+1);
 __attribute__((always_inline)) uint8_t* getFontAdr() { return (uint8_t*)ttbasic_font;};
 
 // **** スクリーン管理 *************
-uint8_t* workarea = NULL;
-uint8_t scmode = USE_SCREEN_MODE;
-uint8_t prv_scmode = scmode;
-uint8_t scrt = 0;
-uint8_t prv_scrt = 0;
+uint8_t* workarea = NULL;           // 画面用動的獲得メモリ
+uint8_t  scmode = USE_SCREEN_MODE;  // シリアルコンソール画面(USB or シリアルポート)
+uint8_t  prv_scmode = scmode;
+uint8_t  scSizeMode = 1;            // スクリーンサイズモード(0:シリアルターミナル,1:ノーマル,2～ 拡大表示)
+uint8_t  prv_scSizeMode = 1;        // 直前のスクリーンサイズモード(0:シリアルターミナル,1:ノーマル,2～ 拡大表示)
+uint8_t scrt = 0;                   // 画面向き
+uint8_t prv_scrt = 0;               // 直前の画面向き
 
-tscreenBase* sc;
-tTermscreen sc1; 
+tscreenBase* sc;   // 利用デバイススクリーン用ポインタ
+tTermscreen sc1;   // ターミナルスクリーン
 
 #if USE_NTSC == 1
   #include "tTVscreen.h"
-  tTVscreen   sc0; 
-#endif 
-#if USE_TFT == 1
+  tTVscreen   sc0;
+#elif USE_TFT == 1
   #include "tTFTScreen.h"
-  tTFTScreen sc2;
-#endif
-#if USE_OLED == 1
+  tTFTScreen  sc2;
+#elif USE_OLED == 1
   #include "tOLEDScreen.h"
   tOLEDScreen sc2;
 #endif
@@ -135,8 +138,6 @@ sdfiles fs;
 // **** EEPROMエミュレーション ******
 #include <EEPROM.h>
 extern EEPROMClass EEPROM;
-//#define EEPROM_PAGE0 (((uint32_t)(0x8000000))+(FLASH_PRG_START_PAGE-2)*FLASH_PAGE_SIZE)
-//#define EEPROM_PAGE1 (((uint32_t)(0x8000000))+(FLASH_PRG_START_PAGE-1)*FLASH_PAGE_SIZE)
 #define EEPROM_PAGE0 (FLASH_START_ADDRESS+(FLASH_PAGE_NUM-2)*FLASH_PAGE_SIZE)
 #define EEPROM_PAGE1 (FLASH_START_ADDRESS+(FLASH_PAGE_NUM-1)*FLASH_PAGE_SIZE)
 
@@ -159,9 +160,7 @@ uint8_t saveConfig();
 char* getParamFname();
 int16_t getNextLineNo(int16_t lineno);
 void mem_putch(uint8_t c);
-void dev_toneInit() ;
-void dev_tone(uint16_t freq, uint16_t duration) ;
-void dev_notone() ;
+
 unsigned char* iexe();
 short iexp(void);
 void error(uint8_t flgCmd);
@@ -3497,7 +3496,7 @@ void iprint(uint8_t devno=0,uint8_t nonewln=0) {
     newline(devno);
   }
 END_PRINT:
-  if (USE_OLED && devno == 0) {
+  if (USE_OLED ==1 && devno == 0 && 0 != scmode ) {
 #if USE_OLED == 1
     ((tOLEDScreen*)sc)->update();
 #endif
@@ -3971,7 +3970,6 @@ void iwidth() {
   if ( getParam(w,  16, SIZE_LINE, true) ) return;   // w
   if ( getParam(h,  10,  50, false) ) return;        // h
   if (scmode == 0) {
-    Serial.println("STEP1");
     // 現在、ターミナルモードの場合は画面をクリアして、再設定する
     sc->cls();
     sc->locate(0,0);
@@ -3982,28 +3980,30 @@ void iwidth() {
 
 // スクリーンモード指定 SCREEN M
 void iscreen() {
-  int16_t m,rt;
-  int8_t prv_m;
+  int16_t m;      // スクリーンサイズモード
 
+// 画面向きのデフォルト指定
 #if USE_TFT == 1
-  rt = TFT_RTMODE;
+  int16_t rt = TFT_RTMODE;
 #elif USE_OLED == 1
-  rt = OLED_RTMODE;
+  int16_t rt = OLED_RTMODE;
 #endif
 
 #if USE_NTSC == 1
-  // 引数チェック
-  if ( getParam(m,  1, 3, false) ) return;   // m
-  if (scmode == m) 
-    return;
-
+  // スクリーンモードの引数チェック
+  if ( getParam(m, 1, 3, false) ) return;   // m
+  if (scSizeMode == m) {
+    return; // 画面サイズの変更が無いので終了
+  }
+  
   // 画面をクリア、終了、資源開放
-  prv_m = sc->getSerialMode();
+  //prv_m = sc->getSerialMode();
   sc->cls();
   sc->show_curs(true);
   sc->locate(0,0);
   sc->end();
-  scmode = m;
+  scSizeMode = m; // 新しい画面サイズモードの保持
+  
   if (m == 0) {
     // USB-シリアルターミナルスクリーン設定
      sc = &sc1;
@@ -4038,7 +4038,7 @@ void iscreen() {
     if ( getParam(rt,0, 3, false) ) return;   // 画面回転 0～3
   }
   scrt = rt;
-  prv_m = sc->getSerialMode(); 
+  //prv_m = sc->getSerialMode(); 
   if (m>0) {
       sc->show_curs(true); 
       sc = &sc2; // スクルーン切替
@@ -4057,12 +4057,12 @@ void iscreen() {
       ((tOLEDScreen*)sc)->locate(0,0);
       ((tOLEDScreen*)sc)->refresh();    
   #endif
-      scmode = m;
+      scSizeMode  = m;
     } else {
       sc->cls(); // TFTスクルーンは画面消去
       sc = &sc1; // スクリーン切替
       ((tTermscreen*)sc)->init(TERM_W,TERM_H,SIZE_LINE, workarea);// USB-シリアルターミナルスクリーン設定
-      scmode = 0;
+      scSizeMode  = 0;
     }
 #else
    err = ERR_NOT_SUPPORTED;
@@ -4071,86 +4071,103 @@ void iscreen() {
 
 // コンソールモード指定 SCREEN N
 // N:0 デバイスコンソール 1:シリアルコンソール
-// ※ターミナルモードの場合、
 void iconsole() {
-  int16_t m,rt;
-  static int8_t prv_m = DEF_SMODE;
+  int16_t m; // コマンドライン引数  コンソールモード
 
+  // 画面向きのデフォルト指定(TFT・OLED用)
 #if USE_TFT == 1
-  rt = TFT_RTMODE;
+  int16_t rt = TFT_RTMODE;
 #elif USE_OLED == 1
-  rt = OLED_RTMODE;
+  int16_t rt = OLED_RTMODE;
 #endif
 
   // 引数チェック
   if ( getParam(m,  0, 1, false) ) return;   // m
-  if ( m == 0 && scmode > 0) {
-    // デバイスコンソール利用
-    return;
-  } else if ( m == 1 && scmode == 0) {
-    // シリアルコンソール利用中
+  if ( ( m == 0 && scSizeMode > 0) || ( m == 1 && scSizeMode  == 0)) {
+    // 変更なしの場合は終了する
     return;
   }
 
-#if USE_NTSC == 1
+#if USE_NTSC == 1 // ****** NTSC画面の場合のコンソール切替処理 *******
   if (m == 1) {
-    // デバイスコンソールからシリアルコンソールに切り替え
-    prv_scmode = scmode;
-    scmode = 0; // シリアルコンソールモード
+    // デバイスコンソール => シリアルコンソール切り替え
+    prv_scSizeMode = scSizeMode; // 現時点の画面サイズモードを保存する
+    scSizeMode = 0;              // 画面サイズモードに 0:シリアルコンソールをセット
+   
+    // NTSCデバイス画面のクリア・終了・資源開放
+    sc->cls();            // 画面クリア
+    sc->show_curs(true);  // カーソル表示
+    sc->locate(0,0);      // ホームポジションに移動    
+    sc->end();            // 終了・資源開放
 
-    // 画面をクリア、終了、資源開放
-    prv_m = sc->getSerialMode();
+    // カレントスクリーンをシリアルコンソールし、初期化と資源獲得
+    sc = &sc1;                   
+    ((tTermscreen*)sc)->init(TERM_W,TERM_H,SIZE_LINE, workarea); 
     sc->cls();
-    sc->show_curs(true);
-    sc->locate(0,0);
-    sc->end();
-
-    // USB-シリアルターミナルスクリーン設定
-     sc = &sc1;
-    ((tTermscreen*)sc)->init(TERM_W,TERM_H,SIZE_LINE, workarea); // スクリーン初期設定 
+        
   } else {
-    // NTSCスクリーン設定
-    sc = &sc0;
-    scmode = prv_scmode;
-    if (scmode == 1) 
+    // シリアルコンソール => NTSCスクリーン設定
+
+    // シリアルコンソール画面のクリア・終了・資源開放
+    sc->cls();            // 画面クリア
+    sc->show_curs(true);  // カーソル表示
+    sc->locate(0,0);      // ホームポジションに移動
+    sc->end();            // 終了・資源開放
+
+    // カレントスクリーンをNTSCスクリーンにし、初期化
+    sc = &sc0; 
+    scSizeMode = prv_scSizeMode; // 前回の画面サーズモードをセット
+    prv_scSizeMode = 0;          // 直前の画面サーズモードに0:シリアルコンソールをセット
+
+    // 指定した画面サイズでのビデオ信号を生成する
+    if (scSizeMode == 1) 
       ((tTVscreen*)sc)->init(ttbasic_font, SIZE_LINE, CONFIG.KEYBOARD,CONFIG.NTSC, workarea, SC_DEFAULT);
-    else if (scmode == 2)
+    else if (scSizeMode == 2)
       ((tTVscreen*)sc)->init(ttbasic_font, SIZE_LINE, CONFIG.KEYBOARD,CONFIG.NTSC, workarea, SC_224x108);
-    else  if (scmode == 3) 
+    else  if (scSizeMode == 3) 
       ((tTVscreen*)sc)->init(ttbasic_font, SIZE_LINE, CONFIG.KEYBOARD,CONFIG.NTSC, workarea, SC_112x108);
 
-    ((tTVscreen*)sc)->Serial_mode(prv_m, GPIO_S1_BAUD);
-    ((tTVscreen*)sc)->cls();
-    ((tTVscreen*)sc)->show_curs(false);
-    ((tTVscreen*)sc)->draw_cls_curs();
-    ((tTVscreen*)sc)->locate(0,0);
-    ((tTVscreen*)sc)->refresh();
+    ((tTVscreen*)sc)->cls();              // 画面クリア
+    ((tTVscreen*)sc)->show_curs(false);   // カーソル非表示おモード
+    ((tTVscreen*)sc)->draw_cls_curs();    // カーソル消去
+    ((tTVscreen*)sc)->locate(0,0);        // ホームポジション
+    ((tTVscreen*)sc)->refresh();          // 画面リフレッシュ
   }
-#elif USE_TFT == 1 || USE_OLED == 1 
-  prv_m = sc->getSerialMode(); 
+#elif USE_TFT == 1 || USE_OLED == 1 // ****** TFT・OLED画面の場合のコンソール切替処理 *******
+ // prv_m = sc->getSerialMode(); 
   if (m == 1) {
-    // デバイスコンソールからシリアルコンソールに切り替え
-    prv_scmode = scmode;
-    prv_scrt = scrt;
-    scmode = 0; // シリアルコンソールモード
-    sc->cls(); // TFTスクルーンは画面消去
-    sc = &sc1; // スクリーン切替
+    // デバイスコンソール => シリアルコンソール切り替え
+    prv_scrt = scrt;               // 現在の画面向きを保存
+    prv_scSizeMode = scSizeMode;   // 現在の画面サイズを保存
+    scSizeMode = 0;                // 画面サイズをシリアルコンソールを設定
+    sc->cls();                     // TFTスクルーンは画面消去(資源開放は不要)
+    
+    sc = &sc1;     // カレントデバイススクリーンをシリアルコンソールに切り替える
     ((tTermscreen*)sc)->init(TERM_W,TERM_H,SIZE_LINE, workarea);// USB-シリアルターミナルスクリーン設定
+    sc->cls();
   } else {
-    // シリアルコンソールからデバイスコンソールに切り替え
-    sc->show_curs(true); 
-    sc = &sc2; // スクルーン切替
-    scmode = prv_scmode;
-    scrt = prv_scrt;
-  #if USE_TFT == 1      
-    ((tTFTScreen*)sc)->setScreen(scmode, scrt);
+    // シリアルコンソール => デバイスコンソールに切り替え
+
+    // シリアルコンソール画面のクリア・終了・資源開放
+    sc->cls();            // 画面クリア
+    sc->show_curs(true);  // カーソル表示
+    sc->locate(0,0);      // ホームポジションに移動
+    sc->end();            // 終了・資源開放
+    
+    // カレントスクリーンをTFT・OLEDスクリーンに切替て、初期化
+    sc = &sc2;                    // スクルーン切替
+    scrt = prv_scrt;              // 画面向きの設定
+    scSizeMode = prv_scSizeMode;  // 画面サイズの設定
+    prv_scSizeMode = 0;
+  #if USE_TFT == 1     // TFT画面の場合の初期化
+    ((tTFTScreen*)sc)->setScreen(scSizeMode, scrt);
     ((tTFTScreen*)sc)->cls();
     ((tTFTScreen*)sc)->show_curs(false);
     ((tTFTScreen*)sc)->draw_cls_curs();
     ((tTFTScreen*)sc)->locate(0,0);
     ((tTFTScreen*)sc)->refresh();    
-  #elif USE_OLED == 1
-    ((tOLEDScreen*)sc)->setScreen(scmode, scrt);
+  #elif USE_OLED == 1 // OLED画面の場合の初期化
+    ((tOLEDScreen*)sc)->setScreen(scSizeMode, scrt);
     ((tOLEDScreen*)sc)->cls();
     ((tOLEDScreen*)sc)->show_curs(false);
     ((tOLEDScreen*)sc)->draw_cls_curs();
@@ -4837,13 +4854,12 @@ void iinfo() {
   c_puts("SRAM Free:");
   putnum((int16_t)(adr-hadr),0);
   newline();
-  
+#if 0  
   // EEPROM領域
   c_puts("EPAGE0:");putHexnum((int16_t)(EEPROM_PAGE0>>16),4);putHexnum((int16_t)(EEPROM_PAGE0&0xffff),4);;newline();
   c_puts("EPAGE1:");putHexnum((int16_t)(EEPROM_PAGE1>>16),4);putHexnum((int16_t)(EEPROM_PAGE1&0xffff),4);;newline();
   c_puts("START_PAGE:");putnum(FLASH_PRG_START_PAGE,2);newline();
-
-  
+#endif
 }
 
 // ラベル
