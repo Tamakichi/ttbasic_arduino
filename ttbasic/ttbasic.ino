@@ -7,7 +7,6 @@
 #include "ttconfig.h"
 
 void basic();
-uint8_t serialMode;
 
 void setup(void){
   //Serial.begin(115200);
