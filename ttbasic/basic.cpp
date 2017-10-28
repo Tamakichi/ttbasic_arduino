@@ -5310,17 +5310,17 @@ void basic() {
 #elif USE_TFT == 1
   // TFTスクリーン設定
   sc = &sc2;
-  scSizeMode = NTSC_SCMODE;
+  scSizeMode = TFT_SCMODE;
   scrt = TFT_RTMODE;    
   ((tTFTScreen*)sc)->init(ttbasic_font, SIZE_LINE, CONFIG.KEYBOARD, workarea,1, TFT_RTMODE);
-  ((tTFTScreen*)sc)->setScreen(NTSC_SCMODE, scrt);    
+  ((tTFTScreen*)sc)->setScreen(scSizeMode, scrt);    
 #elif USE_OLED == 1
   // OLEDスクリーン設定
   sc = &sc2;
   scSizeMode = OLED_SCMODE;
   scrt = OLED_RTMODE;    
   ((tOLEDScreen*)sc)->init(ttbasic_font, SIZE_LINE, CONFIG.KEYBOARD, workarea,1, OLED_RTMODE, OLED_IFMODE);
-  ((tOLEDScreen*)sc)->setScreen(OLED_SCMODE, OLED_RTMODE);
+  ((tOLEDScreen*)sc)->setScreen(scSizeMode, scrt);
 #endif
 
   sc->Serial_mode(serialMode, defbaud); // デバイススクリーンのシリアル出力の設定
