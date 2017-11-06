@@ -5,6 +5,7 @@
 // 2017/08/12 修正 SPI2を利用に修正
 // 2017/08/25 修正 グラフィック描画対応
 // 2017/08/28 スクリーン用メモリに確保済領域指定対応
+// 2017/11/05 デバッグ用出力消し忘れミスの対応
 //
 
 #include <string.h>
@@ -378,8 +379,6 @@ uint8_t tTFTScreen::bmpDraw(char *filename, uint8_t x, uint16_t y, uint16_t bx, 
             pos = bmpImageoffset + (bmpHeight - 1 - row) * rowSize + bx*3;
           else 
             pos = bmpImageoffset + row * rowSize + bx*3;
-          Serial.print("pos=");
-          Serial.println(pos,DEC);
           if(bmpFile.position() != pos) {
             bmpFile.seek(pos);
             buffidx = sizeof(sdbuffer); 

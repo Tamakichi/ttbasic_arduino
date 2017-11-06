@@ -31,7 +31,8 @@
 // 2017/10/27 CONSLEコマンドの不具合修正
 // 2017/10/27 LIST表示時にIF文中で')'の後の変数名が来る場合に空白文字が入るように修正
 // 2017/10/27 NTSC版でデフォルト画面サイズが指定出来るように修正
-//
+// 2017/11/03 起動直後JTRST(PB4)がHIGHになっている不具合対応 
+// 2017/11/04 RTCのクロックソースをttconfig.hで設定可能に修正
 
 #include <Arduino.h>
 #include <unistd.h>
@@ -49,7 +50,7 @@
 #define SIZE_LINE 128    // コマンドライン入力バッファサイズ + NULL
 #define SIZE_IBUF 128    // 中間コード変換バッファサイズ
 #define SIZE_LIST 4096   // プログラム領域サイズ(4kバイト)
-#define SIZE_VAR  208    // 利用可能変数サイズ(A-Z,A0:A6-Z0:Z6の26+26*7=208)
+#define SIZE_VAR  210    // 利用可能変数サイズ(A-Z,A0:A6-Z0:Z6の26+26*7=208)
 #define SIZE_ARRY 100    // 配列変数サイズ(@(0)～@(99)
 #define SIZE_GSTK 20     // GOSUB stack size(2/nest) :10ネストまでOK
 #define SIZE_LSTK 50     // FOR stack size(5/nest) :  10ネストまでOK
@@ -69,7 +70,7 @@
 const uint8_t* ttbasic_font = DEVICE_FONT;
 uint16_t f_width  = *(ttbasic_font+0);
 uint16_t f_height = *(ttbasic_font+1);
-__attribute__((always_inline)) uint8_t* getFontAdr() { return (uint8_t*)ttbasic_font;};
+inline uint8_t* getFontAdr() { return (uint8_t*)ttbasic_font;};
 
 // **** スクリーン管理 *************
 uint8_t* workarea = NULL;           // 画面用動的獲得メモリ
@@ -95,10 +96,7 @@ tTermscreen sc1;   // ターミナルスクリーン
   #include "tOLEDScreen.h"
   tOLEDScreen sc2;
 #endif
-/*
-uint16_t tv_get_gwidth();
-uint16_t tv_get_gheight();
-*/
+
 #define KEY_ENTER 13
 
 // **** I2Cライブラリの利用設定 ****
@@ -130,7 +128,7 @@ uint16_t tv_get_gheight();
 sdfiles fs;
 #endif 
 
-// **** プロフラム保存用定義 ********
+// **** プログラム保存用定義 ********
 #include <TFlash.h>
 #define FLASH_PAGE_SIZE        1024
 #define FLASH_START_ADDRESS    ((uint32_t)(0x8000000))
@@ -152,7 +150,7 @@ extern EEPROMClass EEPROM;
 #define CONFIG_KBD  65533  // EEPROM キーボード設定
 #define CONFIG_PRG  65532  // 自動起動設定
 
-typedef struct {
+typedef struct SystemConfig {
   int16_t NTSC;        // NTSC設定 (0,1,2,3)
   int16_t KEYBOARD;    // キーボード設定 (0:JP, 1:US)
   int16_t STARTPRG;    // 自動起動(-1,なし 0～9:保存プログラム番号)
@@ -174,7 +172,7 @@ void error(uint8_t flgCmd);
 #if USE_INNERRTC == 1
   #include <RTClock.h>
   #include <time.h>
-  RTClock rtc(RTCSEL_LSE);
+  RTClock rtc(RTC_CROCK_SRC);
 #endif
 
 // **** PWM用設定 ********************
@@ -249,7 +247,7 @@ inline uint8_t IsUseablePin(uint8_t pinno, uint8_t fnc) {
 // 指定デバイスへの文字の出力
 //  c     : 出力文字
 //  devno : デバイス番号 0:メインスクリーン 1:シリアル 2:グラフィック 3:、メモリー 4:ファイル
-inline void c_putch(uint8_t c, uint8_t devno = 0) {
+inline void c_putch(uint8_t c, uint8_t devno = CDEV_SCREEN) {
   if (devno == CDEV_SCREEN )
     sc->putch(c); // メインスクリーンへの文字出力
   else if (devno == CDEV_SERIAL)
@@ -268,7 +266,7 @@ inline void c_putch(uint8_t c, uint8_t devno = 0) {
 
 //  改行
 //  devno : デバイス番号 0:メインスクリーン 1:シリアル 2:グラフィック 3:、メモリー 4:ファイル
-void newline(uint8_t devno=0) {
+void newline(uint8_t devno=CDEV_SCREEN) {
  if (devno== CDEV_SCREEN )
    sc->newLine();        // メインスクリーンへの文字出力
   else if (devno == CDEV_SERIAL )
@@ -336,7 +334,7 @@ const char *kwtbl[] __FLASH__  = {
 #define SIZE_KWTBL (sizeof(kwtbl) / sizeof(const char*))
 
 // i-code(Intermediate code) assignment
-enum { 
+enum ICode { 
  I_GOTO, I_GOSUB, I_RETURN, I_FOR, I_TO, I_STEP, I_NEXT, I_IF, I_END, I_ELSE,   // 制御命令(10)
  I_COMMA, I_SEMI, I_COLON, I_SQUOT, I_MINUS, I_PLUS, I_MUL, I_DIV, I_DIVR, I_OPEN, I_CLOSE, I_DOLLAR,  // 演算子・記号(28)
  I_LSHIFT, I_RSHIFT, I_OR, I_AND, I_GTE, I_SHARP, I_GT, I_EQ, I_LTE, I_NEQ, I_NEQ2, I_LT, I_LAND, I_LOR, I_LNOT,
@@ -476,7 +474,7 @@ const char* errmsg[] __FLASH__ = {
 };
 
 // エラーコード
-enum {
+enum ErrorInfo {
   ERR_OK,
   ERR_DIVBY0,
   ERR_VOF,
@@ -2391,6 +2389,8 @@ int16_t ivpeek() {
 }
 
 // ピンモード設定(タイマー操作回避版)
+//  この関数は、ArduinoSTM3 2R20170323のpinMode()不具合修正バージョンです。
+//  最新のバージョンでは対応されています。
 void Fixed_pinMode(uint8 pin, WiringPinMode mode) {
     gpio_pin_mode outputMode;
     bool pwm = false;
@@ -2576,7 +2576,7 @@ void ishiftOut() {
 }
 
 // 16進文字出力 'HEX$(数値,桁数)' or 'HEX$(数値)'
-void ihex(uint8_t devno=0) {
+void ihex(uint8_t devno=CDEV_SCREEN) {
   short value; // 値
   short d = 0; // 桁数(0で桁数指定なし)
 
@@ -2591,7 +2591,7 @@ void ihex(uint8_t devno=0) {
 }
 
 // 2進数出力 'BIN$(数値, 桁数)' or 'BIN$(数値)'
-void ibin(uint8_t devno=0) {
+void ibin(uint8_t devno=CDEV_SCREEN) {
   int16_t value; // 値
   int16_t d = 0; // 桁数(0で桁数指定なし)
 
@@ -2606,7 +2606,7 @@ void ibin(uint8_t devno=0) {
 }
 
 // 小数点数値出力 DMP$(数値) or DMP(数値,小数部桁数) or DMP(数値,小数部桁数,整数部桁指定)
-void idmp(uint8_t devno=0) {
+void idmp(uint8_t devno=CDEV_SCREEN) {
   int32_t value;     // 値
   int32_t v1,v2;
   int16_t n = 2;    // 小数部桁数
@@ -2647,7 +2647,7 @@ void idmp(uint8_t devno=0) {
 // 戻り値
 //  なし
 //
-void istrref(uint8_t devno=0) {
+void istrref(uint8_t devno=CDEV_SCREEN) {
   int16_t len;
   int16_t top;
   int16_t n;
@@ -3232,13 +3232,20 @@ void iswrite() {
 }
 
 // シリアルモード設定: SMODE MODE [,"通信速度"]
+// MODE 0                     : USB=コンソール、Serial1=データ通信
+// MODE 1,"通信速度"          : USB=データ通信、Serial1=コンソール
+// MODE 3,制御コード無効/有効 : ポートの機能変更なし
 void ismode() {
-  int16_t c,flg;
-  uint16_t ln;
-  uint32_t baud = 0;
+  int16_t c;          // モード
+  int16   flg;        // 制御コード有効/無効指定
+  uint16_t ln;        // 通信速度文字数
+  uint32_t baud = 0;  // 通信速度
 
+  // 第1引数の取得
   if ( getParam(c, 0, 3, false) ) return;  
+  
   if (c == 1) {
+    // MODE 1 の場合,第2引数を取得する
     if(*cip != I_COMMA) {
       err = ERR_SYNTAX;
       return;      
@@ -3252,7 +3259,7 @@ void ismode() {
     cip++;        //中間コードポインタを次へ進める
     ln = *cip++;  //文字数を取得
   
-    // 引数のチェック
+    // 第2引数の文字列の評価
     for (uint16_t i=0; i < ln; i++) {
        if (*cip >='0' && *cip <= '9') {
           baud = baud*10 + *cip - '0';
@@ -3264,15 +3271,18 @@ void ismode() {
     }
   }
   else if (c == 3) {
-    // シリアルからの制御入力許可設定
+    // MODE 3の場合、第2引数を取得する
     cip++;
-    if ( getParam(flg, 0, 1, false) ) return;  
+    if ( getParam(flg, 0, 1, false) ) return;
+    // 制御コード処理の設定
     sc->set_allowCtrl(flg);
     return;
   }
- sc->Serial_mode((uint8_t)c, baud);
- serialMode =c;
- defbaud = baud;
+  
+  // モードの設定
+  sc->Serial_mode((uint8_t)c, baud);
+  serialMode =c;
+  defbaud = baud;
 }
 
 // シリアル1クローズ
@@ -5232,11 +5242,8 @@ uint8_t icom() {
        break; 
   case I_RUN:   sc->show_curs(0); irun();  sc->show_curs(1);   break; // RUN命令
   case I_RENUM: // I_RENUMの場合
-    //if (*cip == I_EOL || *(cip + 3) == I_EOL || *(cip + 7) == I_EOL)
       irenum(); 
-    //else
-    //  err = ERR_SYNTAX;
-    break;
+     break;
   case I_DELETE:     idelete();  break;    
   case I_OK:         rc = 0;     break; // I_OKの場合
 
@@ -5256,14 +5263,14 @@ uint8_t icom() {
 */
 
 void basic() {
-  //uint8_t serialMode = DEF_SMODE;
   unsigned char len; // 中間コードの長さ
-  uint8_t rc;
-  // SWD・JTAGの利用禁止
-  // http://stm32duino.com/viewtopic.php?f=35&t=1130&p=13919&hilit=PA15#p13919
-  afio_cfg_debug_ports(AFIO_DEBUG_NONE);
+  uint8_t rc;        // 関数戻り値受け取り用
 
-// 起動時のモード指定チェック
+  // SWD・JTAGの利用禁止
+  disableDebugPorts();
+  pinMode(PB4, INPUT); // 禁止後,JTRSTがHIGHのままのため、入力モードに変更
+
+  // 起動時のモード指定チェック
 #if FLG_CHK_BOOT1 == 1
   // BOOT1がHIGHの場合、シリアルコンソールモードで起動する
   // さらに、SWCLKがLOWならUSBシリアル、HIGHならGPIOシリアルポートえを使う
@@ -5281,13 +5288,13 @@ void basic() {
   EEPROM.PageSize  = FLASH_PAGE_SIZE;
   //EEPROM.init();
 
-  // 環境設定
+  // 環境設定のロード
   loadConfig();
 
   // プログラム領域の初期化
   inew();              
 
-// ワークエリアの獲得
+  // ワークエリアの獲得
 #if USE_NTSC == 1
   workarea = (uint8_t*)malloc(7048); // SCREEN0で128x50まで
 #elif USE_OLED == 1
@@ -5296,7 +5303,7 @@ void basic() {
   workarea = (uint8_t*)malloc(6400); // SCREEN0で128x50まで
 #endif
 
-// デバイススクリーンの初期化設定
+  // デバイススクリーンの初期化設定
 #if USE_SCREEN_MODE== 0 // シリアルコンソール利用
   sc = &sc1;
   ((tTermscreen*)sc)->init(TERM_W,TERM_H,SIZE_LINE, workarea); // スクリーン初期設定
@@ -5344,58 +5351,66 @@ void basic() {
 
   I2C_WIRE.begin();  // I2C利用開始
   
-  icls();
   char* textline;    // 入力行
 
   // 起動メッセージ  
-  sc->show_curs(0);
-  c_puts("TOYOSHIKI TINY BASIC "); //「TOYOSHIKI TINY BASIC」を表示
-  newline();                    // 改行
-  c_puts(STR_EDITION);          // 版を区別する文字列「EDITION」を表示
-  c_puts(" " STR_VARSION);      // バージョンの表示
-  newline();                    // 改行
-  error();                      //「OK」またはエラーメッセージを表示してエラー番号をクリア
-  sc->show_curs(1);
-  
+  icls();
+  sc->show_curs(0);                // 高速描画のためのカーソル非表示指定
+  c_puts("TOYOSHIKI TINY BASIC "); // 「TOYOSHIKI TINY BASIC」を表示
+  newline();                       // 改行
+  c_puts(STR_EDITION);             // 版を区別する文字列「EDITION」を表示
+  c_puts(" " STR_VARSION);         // バージョンの表示
+  newline();                       // 改行
+  error();                         // 「OK」またはエラーメッセージを表示してエラー番号をクリア
+  sc->show_curs(1);                // カーソル表示
+    
   // プログラム自動起動
   if (CONFIG.STARTPRG >=0  && loadPrg(CONFIG.STARTPRG) == 0) {
-    sc->show_curs(0);
-    irun();        // RUN命令を実行
-    newline();     // 改行
-    c_puts("Autorun No.");putnum(CONFIG.STARTPRG,0);c_puts(" stopped.");
-    newline();     // 改行
+    // ロードに成功したら、プログラムを実行する
+    sc->show_curs(0);        // カーソル非表示
+    irun();                  // RUN命令を実行
+
+    // 起動したプログラムの情報を表示
+    newline();               // 改行
+    c_puts("Autorun No."); 
+    putnum(CONFIG.STARTPRG,0);c_puts(" stopped.");
+    newline();
     err = 0; 
   }
   
-  // 端末から1行を入力して実行
+  // 端末から1行を入力して実行（メインループ）
   sc->show_curs(1);
   while (1) { //無限ループ
-    rc = sc->edit();
+    rc = sc->edit();  // エディタ入力
     if (rc) {
-      textline = (char*)sc->getText();
+      textline = (char*)sc->getText(); // スクリーンバッファからテキスト取得
       if (!strlen(textline) ) {
+        // 改行のみ
         newline();
         continue;
       }
+      
       if (strlen(textline) >= SIZE_LINE) {
+        // 入力文字が有効文字長を超えている
          err = ERR_LONG;
          newline();
          error();
          continue;  
       }
-      
+      // 行バッファに格納し、改行する
       strcpy(lbuf, textline);
-      tlimR((char*)lbuf);
+      tlimR((char*)lbuf); //文末の余分空白文字の削除
       newline();
     } else {
+      // 入力なし
       continue;
     }
     
     // 1行の文字列を中間コードの並びに変換
-    len = toktoi(); // 文字列を中間コードに変換して長さを取得
-    if (err) {      // もしエラーが発生したら
-      error(true);  // エラーメッセージを表示してエラー番号をクリア
-      continue;     // 繰り返しの先頭へ戻ってやり直し
+    len = toktoi();      // 文字列を中間コードに変換して長さを取得
+    if (err) {           // もしエラーが発生したら
+      error(true);       // エラーメッセージを表示してエラー番号をクリア
+      continue;          // 繰り返しの先頭へ戻ってやり直し
     }
 
     //中間コードの並びがプログラムと判断される場合
@@ -5408,18 +5423,19 @@ void basic() {
     }
 
     // 中間コードの並びが命令と判断される場合
-    if (icom())  // 実行する
-        error(false); // エラーメッセージを表示してエラー番号をクリア
+    if (icom())           // 実行する
+        error(false);     // エラーメッセージを表示してエラー番号をクリア
   } // 無限ループの末尾
 }
 
-// システム環境設定のロード
+// 仮想EEPROMからシステム環境設定のロード
+// 戻り値 0:正常終了、1:異常終了
 uint8_t loadConfig() {
-  int16_t rc;
-  uint16_t data;
-  CONFIG.NTSC      =  0;
-  CONFIG.KEYBOARD  =  0;
-  CONFIG.STARTPRG  = -1;
+  int16_t rc;              // 関数戻り受け取り値用
+  uint16_t data;           // 仮想EEPROMからの取り出しデータ
+  CONFIG.NTSC      =  0;   // NTSC補正値のデフォルト値
+  CONFIG.KEYBOARD  =  0;   // キーボード設定のデフォルト値(JP)
+  CONFIG.STARTPRG  = -1;   // 自動起動のデフォルト値(自動起動なし)
 
   // NTSC設定の参照
   rc = EEPROM.read(CONFIG_NTSC, &data);
@@ -5439,12 +5455,14 @@ uint8_t loadConfig() {
   return 0;
 }
 
-// システム環境設定の保存
+// 仮想EEPROMにシステム環境設定を保存
+// 戻り値 0:正常終了、1:異常終了
 uint8_t saveConfig() {
-  int16_t  rc;
-  uint16_t data;
-  uint16_t Status;
+  int16_t  rc;       // 関数戻り値受け取り用
+  uint16_t data;     // 仮想EEPROM書き込みデータ
+  uint16_t Status;   // 仮想EEPROM書き込みステータス
 
+  // EEPROM書き込み回数を取得し、エラーならフォーマット
   rc = EEPROM.count(&data);
   if (rc != EEPROM_OK) {
      ieepformat();
@@ -5452,6 +5470,7 @@ uint8_t saveConfig() {
       return -1;
   }
 
+  // 仮想EEPROMに設定値を保存する
   Status = EEPROM.write(CONFIG_NTSC, (uint16_t)CONFIG.NTSC);
   if (Status != EEPROM_OK) goto ERR_EEPROM;
   Status = EEPROM.write(CONFIG_KBD, (uint16_t)CONFIG.KEYBOARD);
@@ -5460,7 +5479,8 @@ uint8_t saveConfig() {
   if (Status != EEPROM_OK) goto ERR_EEPROM;
   goto DONE;
 
-ERR_EEPROM:  
+ERR_EEPROM:
+    // エラーの場合
     switch(Status) {
       case EEPROM_OUT_SIZE:      err = ERR_EEPROM_OUT_SIZE;break;
       case EEPROM_BAD_ADDRESS:   err = ERR_EEPROM_BAD_ADDRESS;break;
@@ -5472,6 +5492,7 @@ ERR_EEPROM:
     }
     return -1;
 
-DONE:  
+DONE:
+  // 正常の場合
   return 0;
 }
