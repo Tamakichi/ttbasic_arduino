@@ -68,4 +68,3 @@ void tSerialDev::Serial_mode(uint8_t c, uint32_t b) {
     //Serial1.end();
   }
 }
-
