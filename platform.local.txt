@@ -1,0 +1,3 @@
+# These can be overridden in platform.local.txt
+compiler.c.extra_flags=-DSTM32_R20170323
+compiler.cpp.extra_flags=-DSTM32_R20170323

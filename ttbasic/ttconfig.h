@@ -7,6 +7,7 @@
 // 修正日 2017/08/23 設定の整合性チェック＆補正対応
 // 修正日 2017/10/09 コンパイル条件追加、補足説明の追加
 // 修正日 2017/10/09 NTSC_SCMODE追加
+// 修正日 2017/11/08 RTC_CLOCK_SRC追加,OLD_RTC_LIB指定追加（RTClock仕様変更対応）
 //
 
 #ifndef __ttconfig_h__
@@ -18,7 +19,7 @@
 // ※次の(2)～(4)は排他選択(全て0または、どれか1つが1)
 
 // ** (2)NTSCビデオ出力利用有無 **********************************************
-#define USE_NTSC    1 // 0:利用しない 1:利用する (デフォルト:1)
+#define USE_NTSC    0 // 0:利用しない 1:利用する (デフォルト:1)
 #define NTSC_SCMODE 1 // スクリーンモード(1～3 デオフォルト:1 )
 
 // ** (3)OLED(SH1106/SSD1306/SSD1309) (SPI/I2C)OLEDモジュール利用有無*********
@@ -42,18 +43,10 @@
 //
 
 // ** (4)TFTILI9341 SPI)液晶モジュール利用有無 *******************************
-#define USE_TFT     0 // 0:利用しない 1:利用する (デフォルト:0)
+#define USE_TFT     1 // 0:利用しない 1:利用する (デフォルト:0)
                       // 利用時は USE_NTSC を0にすること
  #define TFT_SCMODE 1 // スクリーンモード(1～6 デオフォルト:1 )
  #define TFT_RTMODE 3 // 画面の向き (0～3: デフォルト: 3)
-
-// 設定の矛盾補正
-#if USE_TFT  == 1 || USE_OLED == 1
- #define USE_NTSC 0
-#endif
-#if USE_NTSC == 0 && USE_TFT == 0 && USE_OLED == 0
- #define USE_SCREEN_MODE 0
-#endif
 
 // ** ターミナルモード時のデフォルト スクリーンサイズ  *************************
 // ※ 可動中では、WIDTHコマンドで変更可能  (デフォルト:80x25)
@@ -77,8 +70,9 @@
 #define I2C_USE_HWIRE  1 // (デフォルト:1)
 
 // ** 内蔵RTCの利用指定   0:利用しない 1:利用する *****************************
+#define OLD_RTC_LIB    1 // 0:2017/08/04以降のバージョン 1:R20170323相当
 #define USE_INNERRTC   1 // (デフォルト:1) ※ SDカード利用時は必ず1とする
-#define RTC_CROCK_SRC  RTCSEL_LSE // 外部32768Hzオシレータ
+#define RTC_CLOCK_SRC  RTCSEL_LSE // 外部32768Hzオシレータ
 
 // ** SDカードの利用      0:利用しない 1:利用する *****************************
 #define USE_SD_CARD    1 // (デフォルト:1)
@@ -108,6 +102,32 @@
   // 8x8 IchigoJamフォント(オプション機能 要フォント)
   #define DEVICE_FONT ichigoFont8x8 
   #include <ichigoFont8x8.h>
+#endif
+
+// 設定の矛盾補正
+#if USE_TFT  == 1 || USE_OLED == 1
+ #define USE_NTSC 0
+#endif
+#if USE_NTSC == 0 && USE_TFT == 0 && USE_OLED == 0
+ #define USE_SCREEN_MODE 0
+#endif
+
+// デバイスコンソール抽象化定義（修正禁止）
+#if USE_NTSC == 1
+ #define DEV_SCMODE NTSC_SCMODE
+ #define DEV_RTMODE CONFIG.NTSC
+ #define DEV_IFMODE 0
+ #define MAX_SCMODE 3
+#elif USE_OLED == 1
+ #define DEV_SCMODE OLED_SCMODE
+ #define DEV_RTMODE OLED_RTMODE
+ #define DEV_IFMODE OLED_IFMODE
+ #define MAX_SCMODE 3 
+#elif USE_TFT == 1
+ #define DEV_SCMODE TFT_SCMODE
+ #define DEV_RTMODE TFT_RTMODE
+ #define DEV_IFMODE 0
+ #define MAX_SCMODE 6 
 #endif
 
 #endif

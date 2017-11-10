@@ -21,14 +21,13 @@
 //  修正日 2017/06/22, シリアル上でBSキー、CTRL-Lが利用可能対応
 //  修正日 2017/08/19, tvutl,tGraphicDevの関数群の移行
 //  修正日 2017/08/24, tone(),notone()の削除,フォント指定方法の仕様変更（フォント汎用利用のため)
+//  修正日 2017/11/08, 関数の一部のインライン化,init()の修正
 //
 
 #include <string.h>
 #include <TTVout.h>	
 #include "tTVscreen.h"
 
-extern uint16_t f_width;    // フォント幅(ドット)
-extern uint16_t f_height;   // フォント高さ(ドット)
 #define NTSC_VIDEO_SPI 2
 
 void    endPS2();
@@ -41,7 +40,6 @@ char*   getLineStr(int16_t lineno);
 int16_t getTopLineNum();
 int16_t getBottomLineNum();
 
-
 //******************************************************************************
 // tvutilライブラリの統合
 //******************************************************************************
@@ -50,7 +48,6 @@ int16_t getBottomLineNum();
 // NTSC表示の初期設定
 // 
 void tTVscreen::tv_init(int16_t ajst, uint8_t* extmem, uint8_t vmode) { 
-  //tv_fontInit();
   this->TV.TNTSC->adjust(ajst);
   this->TV.begin(vmode, NTSC_VIDEO_SPI, extmem); // SPI2を利用
 	
@@ -70,11 +67,6 @@ void tTVscreen::tv_init(int16_t ajst, uint8_t* extmem, uint8_t vmode) {
 }
 
 
-// GVRAMサイズ取得
-__attribute__((always_inline)) uint16_t tTVscreen::getGRAMsize() {
-  return (this->g_width>>3)*this->g_height;
-}
-
 //
 // カーソル表示
 //
@@ -84,30 +76,6 @@ uint8_t tTVscreen::drawCurs(uint8_t x, uint8_t y) {
        this->TV.set_pixel(x*f_width+j, y*f_height+i,2);
   return 0;
 }
-
-//
-// 文字の表示
-//
-__attribute__((always_inline)) void tTVscreen::write(uint8_t x, uint8_t y, uint8_t c) {
-  this->TV.print_char(x * f_width, y * f_height ,c);  
-}
-
-//
-// 指定行の1行クリア
-//
-void tTVscreen::clerLine(uint16_t l) {
-  memset(this->vram + f_height*this->g_width/8*l, 0, f_height*this->g_width/8);
-}
-
-// 指定サイズのドットの描画
-void tTVscreen::tv_dot(int16_t x, int16_t y, int16_t n, uint8_t c) {
-  for (int16_t i = y ; i < y+n; i++) {
-    for (int16_t j= x; j < x+n; j++) {
-      this->b_adr[this->g_width*i+ (j&0xf8) +7 -(j&7)] = c;
-    }
-  }
-}
-
 
 // ビットマップ表示
 void tTVscreen::tv_bitmap(int16_t x, int16_t y, uint8_t* adr, uint16_t index, uint16_t w, uint16_t h, uint16_t n) {
@@ -135,51 +103,6 @@ void tTVscreen::tv_bitmap(int16_t x, int16_t y, uint8_t* adr, uint16_t index, ui
       yy+=n;
     }
   }
-}
-
-	
-// 初期化
-void tTVscreen::ginit() {
-  //g_width   = this->tv_get_gwidth();
-  //g_height  = this->tv_get_gheight();  
-}
-
-// フォントアドレスの参照
-__attribute__((always_inline)) uint8_t *tTVscreen::getfontadr() {
-	return font+3; 
-}  
-
-// グラフィク表示用メモリアドレス参照
-__attribute__((always_inline)) uint8_t* tTVscreen::getGRAM() {
-  return this->vram;	
-}
-	
-// ドット描画
-__attribute__((always_inline)) void tTVscreen::pset(int16_t x, int16_t y, uint16_t c) {
-  this->TV.set_pixel(x,y,c);	
-}
-
-// 線の描画
-void tTVscreen::line(int16_t x1, int16_t y1, int16_t x2, int16_t y2, uint16_t c) {
- this->TV.draw_line(x1,y1,x2,y2,c);	
-}
-
-// 円の描画
-void tTVscreen::circle(int16_t x, int16_t y, int16_t r, uint16_t c, int8_t f) {
-  if (f==0) f=-1;
-  this->TV.draw_circle(x, y, r, c, f);	
-}
-
-// 四角の描画
-void tTVscreen::rect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t c, int8_t f) {
-  if (f==0) f=-1;
-  this->TV.draw_rect(x, y, w, h, c, f);
-	
-}
-
-// ビットマップの描画
-void tTVscreen::bitmap(int16_t x, int16_t y, uint8_t* adr, uint16_t index, uint16_t w, uint16_t h, uint16_t d, uint8_t rgb) {
-  this->tv_bitmap(x, y, adr, index, w, h, d);
 }
 
 // グラフィックスクロール
@@ -241,12 +164,6 @@ void tTVscreen::gscroll(int16_t x, int16_t y, int16_t w, int16_t h, uint8_t mode
    }
 }
 
-
-// 指定位置のピクセル情報取得
-int16_t tTVscreen::gpeek(int16_t x, int16_t y) {
-  return b_adr[g_width*y+ (x&0xf8) +7 -(x&7)];	
-}
-
 // 指定領域のピクセル有無チェック
 int16_t tTVscreen::ginp(int16_t x, int16_t y, int16_t w, int16_t h, uint8_t c) {
   for (int16_t i = y ; i < y+h; i++) {
@@ -259,34 +176,9 @@ int16_t tTVscreen::ginp(int16_t x, int16_t y, int16_t w, int16_t h, uint8_t c) {
   return 0;	
 }
 
-void tTVscreen::set_gcursor(uint16_t x, uint16_t y) {
-  this->TV.set_cursor(x,y);	
-}
-
-void tTVscreen::gputch(uint8_t c) {
-  this->TV.write(c);
-}
-
-		
-	
 //****************************************************************************
 // 差分実装
 //***************************************************************************
-
-// 文字の表示
-__attribute__((always_inline)) void tTVscreen::WRITE(uint8_t x, uint8_t y, uint8_t c) {
-   this->write(x, y, c); // 画面表示
-}
-
-// 画面全消去
-void tTVscreen::CLEAR() {
-  this->TV.cls();   
-}
-
-// 行の消去
-void tTVscreen::CLEAR_LINE(uint8_t l) {
-  this->clerLine(l);  
-}
 
 // スクロールアップ
 void tTVscreen::SCROLL_UP() {
@@ -330,13 +222,13 @@ void tTVscreen::INSLINE(uint8_t l) {
 //  l  : 1行の最大長
 // 戻り値
 //  なし
-void tTVscreen::init(const uint8_t* fnt, uint16_t ln, uint8_t kbd_type, int16_t NTSCajst, uint8_t* extmem, uint8_t vmode) {
-  
-	this->font = (uint8_t*)fnt;
+void tTVscreen::init(const uint8_t* fnt, uint16_t ln, uint8_t kbd_type, uint8_t* extmem, uint8_t vmode, uint8_t NTSCajst, uint8_t ifmode) {
+  static const uint8_t tvmodde[]= {SC_224x216, SC_224x108, SC_112x108 };
+	this->font = (uint8_t*)fnt; 
 
   // ビデオ出力設定
   this->serialMode = 0;
-  this->tv_init(NTSCajst, extmem, vmode);
+  this->tv_init(NTSCajst, extmem, tvmodde[vmode-1]);
   if (extmem == NULL) {
     tscreenBase::init(this->c_width,this->c_height, ln);
   } else {
@@ -365,13 +257,7 @@ void tTVscreen::end() {
 void tTVscreen::refresh_line(uint16_t l) {
   CLEAR_LINE(l);
   for (uint16_t j = 0; j < width; j++) {
-//    if( IS_PRINT( VPEEK(j,l) )) { 
       WRITE(j,l,VPEEK(j,l));
-//    }
   }
-}
-
-void tTVscreen::adjustNTSC(int16_t ajst) {
-  this->TV.TNTSC->adjust(ajst);  	
 }
 

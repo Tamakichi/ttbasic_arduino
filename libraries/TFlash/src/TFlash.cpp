@@ -56,7 +56,7 @@ TFLASH_Status TFlash_Class::waitOperation(uint32_t tm) {
 }
 
 // 指定ページの消去
-TFLASH_Status TFlash_Class::eracePage(uint32_t pageAddress) {
+TFLASH_Status TFlash_Class::erasePage(uint32_t pageAddress) {
   TFLASH_Status status = TFLASH_COMPLETE;
 
   // アドレスの有効性チェック

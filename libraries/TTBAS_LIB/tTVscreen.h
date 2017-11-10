@@ -18,6 +18,7 @@
 //  修正日 2017/06/09, シリアルからは全てもコードを通すように修正
 //  修正日 2017/06/22, シリアルからは全てもコードを通す切り替え機能の追加
 //  修正日 2017/08/24, tone(),notone()の削除
+//  修正日 2017/11/08, 関数の一部のインライン化,init()の修正
 //
 
 #ifndef __tTVscreen_h__
@@ -42,7 +43,9 @@
 
 #define SC_TEXTNUM   256  // 1行確定文字列長さ
 
-//class tTVscreen : public tscreenBase, public tGraphicDev {
+extern uint16_t f_width;    // フォント幅(ドット)
+extern uint16_t f_height;   // フォント高さ(ドット)
+
 class tTVscreen : public tGraphicScreen {
 	private:
 //<-- 2017/08/19 追加	
@@ -51,46 +54,49 @@ class tTVscreen : public tGraphicScreen {
     uint16_t c_width;    // 横文字数
     uint16_t c_height;   // 縦文字数
     uint8_t* vram;       // VRAM先頭
-    //uint8_t* tvfont;     // フォント
     uint32_t *b_adr;     // フレームバッファビットバンドアドレス
 
     void tv_init(int16_t ajst, uint8_t* extmem=NULL, uint8_t vmode=SC_DEFAULT);
-	void tv_end();
+	  void tv_end();
 
-
-	uint8_t  drawCurs(uint8_t x, uint8_t y);
-	void     write(uint8_t x, uint8_t y, uint8_t c);
-	void     clerLine(uint16_t l);
-
-
- 	void tv_dot(int16_t x, int16_t y, int16_t n, uint8_t c);
+  	uint8_t  drawCurs(uint8_t x, uint8_t y);
+    
+    // 文字の表示
+    void  write(uint8_t x, uint8_t y, uint8_t c) { TV.print_char(x * f_width, y * f_height ,c); }; 
+    // 指定行の1行クリア
+    void clerLine(uint16_t l) {memset(this->vram + f_height*this->g_width/8*l, 0, f_height*this->g_width/8);};
+  	void tv_dot(int16_t x, int16_t y, int16_t n, uint8_t c) {
+       for (int16_t i = y ; i < y+n; i++)
+           for (int16_t j= x; j < x+n; j++)
+             b_adr[this->g_width*i+(j&0xf8)+7-(j&7)] = c;
+    };
     void tv_bitmap(int16_t x, int16_t y, uint8_t* adr, uint16_t index, uint16_t w, uint16_t h, uint16_t n);
 
   public:	
-	 // グラフィック描画
-    void  ginit() ;
-    inline uint8_t *getfontadr();// フォントアドレスの参照
-    uint8_t* getGRAM();
-	uint16_t getGRAMsize();
-    void     pset(int16_t x, int16_t y, uint16_t c);
-    void     line(int16_t x1, int16_t y1, int16_t x2, int16_t y2, uint16_t c);
-    void     circle(int16_t x, int16_t y, int16_t r, uint16_t c, int8_t f);
-    void     rect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t c, int8_t f);
-    void     bitmap(int16_t x, int16_t y, uint8_t* adr, uint16_t index, uint16_t w, uint16_t h, uint16_t d, uint8_t rgb=0);
+	  // グラフィック描画
+  void  ginit() {};
+    
+    
+    uint8_t *getfontadr() {return font+3;};  // フォントアドレスの参照
+    uint8_t* getGRAM() {return this->vram;}; // グラフィク表示用メモリアドレス参照
+    uint16_t getGRAMsize() { return (this->g_width>>3)*this->g_height;}; // GVRAMサイズ取得
+    void     pset(int16_t x, int16_t y, uint16_t c) {this->TV.set_pixel(x,y,c);	} ;// ドット描画
+    void     line(int16_t x1, int16_t y1, int16_t x2, int16_t y2, uint16_t c) {TV.draw_line(x1,y1,x2,y2,c);};
+    void     circle(int16_t x, int16_t y, int16_t r, uint16_t c, int8_t f) {TV.draw_circle(x, y, r, c, f?f:-1);};
+    void     rect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t c, int8_t f) {TV.draw_rect(x, y, w, h, c, f?f:-1);};
+    void     bitmap(int16_t x, int16_t y, uint8_t* adr, uint16_t index, uint16_t w, uint16_t h, uint16_t d, uint8_t rgb=0) 
+             {tv_bitmap(x, y, adr, index, w, h, d);};
     void     gscroll(int16_t x, int16_t y, int16_t w, int16_t h, uint8_t mode);
-    int16_t  gpeek(int16_t x, int16_t y);
+    int16_t  gpeek(int16_t x, int16_t y) {return b_adr[g_width*y+ (x&0xf8) +7 -(x&7)];};
     int16_t  ginp(int16_t x, int16_t y, int16_t w, int16_t h, uint8_t c);
-    void     set_gcursor(uint16_t, uint16_t);
-    void     gputch(uint8_t c);
+    void     set_gcursor(uint16_t x, uint16_t y) {TV.set_cursor(x,y);	} ; // グラフィック文字表示カーソル設定
+    void     gputch(uint8_t c) {TV.write(c);}; // 文字のグラフィック表示
 
-	
-// -->
   protected:
     virtual void INIT_DEV(){};                           // デバイスの初期化
-    //virtual void MOVE(uint8_t y, uint8_t x);             // キャラクタカーソル移動 **
-    virtual void WRITE(uint8_t x, uint8_t y, uint8_t c); // 文字の表示
-    virtual void CLEAR();                                // 画面全消去
-    virtual void CLEAR_LINE(uint8_t l);                  // 行の消去
+    virtual void WRITE(uint8_t x, uint8_t y, uint8_t c) {write(x, y, c);}; // 文字の表示
+    virtual void CLEAR() {TV.cls(); } ;                  // 画面全消去
+    virtual void CLEAR_LINE(uint8_t l) {clerLine(l);};   // 行の消去
     virtual void SCROLL_UP();                            // スクロールアップ
     virtual void SCROLL_DOWN();                          // スクロールダウン
     virtual void INSLINE(uint8_t l);                     // 指定行に1行挿入(下スクロール)
@@ -99,35 +105,16 @@ class tTVscreen : public tGraphicScreen {
     uint16_t prev_pos_x;        // カーソル横位置
     uint16_t prev_pos_y;        // カーソル縦位置
  
-    void init( const uint8_t* fnt,
+    // スクリーンの初期設定
+    virtual void init( const uint8_t* fnt,
     	       uint16_t ln=256, uint8_t kbd_type=false,
-    	       int16_t NTSCajst=0, uint8_t* extmem=NULL, 
-               uint8_t vmode=SC_DEFAULT);                // スクリーンの初期設定
-	void end();                                          // スクリーンの利用の終了
-	//void set_allowCtrl(uint8_t flg) { allowCtrl = flg;}; // シリアルからの入力制御許可設定
-    //void Serial_Ctrl(int16_t ch);
-    //void reset_kbd(uint8_t kbd_type=false);
-    //virtual void putch(uint8_t c);                    // 文字の出力
-    //virtual uint8_t get_ch();                         // 文字の取得
-    //inline uint8_t getDevice() {return dev;};         // 文字入力元デバイス種別の取得
-    //virtual uint8_t isKeyIn();                        // キー入力チェック 
-    //virtual uint8_t edit();                           // スクリーン編集
-    //virtual void newLine();                           // 改行出力
-    virtual void refresh_line(uint16_t l);            // 行の再表示
-	
-    //virtual void show_curs(uint8_t flg);              // カーソルの表示/非表示制御
-    //virtual void draw_cls_curs();                     // カーソルの消去
+    	       uint8_t* extmem=NULL, uint8_t vmode=1, uint8_t NTSCajst=0, uint8_t ifmode=0);                
 
-    //void beep() {/*addch(0x07);*/};
-/*
-    inline uint8_t IS_PRINT(uint8_t ch) {
-      //return (((ch) >= 32 && (ch) < 0x7F) || ((ch) >= 0xA0)); 
-      return (ch >= 32); 
-    };
-*/
-
-    // システム設定
-    void  adjustNTSC(int16_t ajst);
+  void end();   // スクリーンの利用の終了
+  virtual void refresh_line(uint16_t l); // 行の再表示
+  
+  // 垂直同期信号補正
+  void  adjustNTSC(uint8_t ajst) {this->TV.TNTSC->adjust(ajst);};                      
 };
 
 #endif

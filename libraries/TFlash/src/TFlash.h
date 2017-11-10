@@ -21,7 +21,7 @@ typedef enum  {
   
 class TFlash_Class {
   public:
-    TFLASH_Status eracePage(uint32_t pageAddress);
+    TFLASH_Status erasePage(uint32_t pageAddress);
     TFLASH_Status write(uint16_t* adr, uint16_t data);
     TFLASH_Status write(uint16_t* adr, uint8_t* data, uint16_t len);
     uint16_t read(uint16_t* adr) {return *((uint16_t*)adr);};

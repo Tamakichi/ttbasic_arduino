@@ -156,31 +156,6 @@ void tscreenBase::putch(uint8_t c) {
 
 // 現在のカーソル位置に文字を挿入
 void tscreenBase::Insert_char(uint8_t c) {  
-/*
-	uint8_t* start_adr = &VPEEK(pos_x,pos_y);
-  uint8_t* last = start_adr;
-  uint16_t ln = 0;  
-
-  // 入力位置の既存文字列長の参照
-  while( *last ) {
-    ln++;
-    last++;
-  }
-
-  if (ln == 0 || flgIns == false) {
-     // 文字列長さが0または上書きモードの場合
-     putch(c);
-  } else {
-     // 挿入処理が必要の場合  
-    memmove(start_adr+1, start_adr, ln);
-    *start_adr=c;
-    movePosNextNewChar();
-    // 挿入した行の再表示
-    for (uint8_t i=0; i < (pos_x+ln)/width+1; i++)
-       refresh_line(pos_y+i);   
-    MOVE(pos_y,pos_x);    
-  }
-*/
   uint8_t* start_adr = &VPEEK(pos_x,pos_y);
   uint8_t* last = start_adr;
   uint16_t ln = 0;  

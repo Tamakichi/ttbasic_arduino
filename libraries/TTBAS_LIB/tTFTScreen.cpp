@@ -46,7 +46,7 @@ static const uint16_t tbl_color[]  =
 
 
 // 初期化
-void tTFTScreen::init(const uint8_t* fnt, uint16_t ln, uint8_t kbd_type, uint8_t* extmem, uint8_t vmode, uint8_t rt) {
+void tTFTScreen::init(const uint8_t* fnt, uint16_t ln, uint8_t kbd_type, uint8_t* extmem, uint8_t vmode, uint8_t rt, uint8_t ifmode) {
   this->font = (uint8_t*)fnt;
   this->tft = new Adafruit_ILI9341_STM_TT(TFT_CS, TFT_DC, TFT_RST,2); // Use hardware SPI
   this->tft->begin();

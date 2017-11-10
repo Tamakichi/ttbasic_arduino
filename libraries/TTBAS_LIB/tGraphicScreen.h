@@ -23,6 +23,8 @@ class tGraphicScreen : public tscreenBase , public tGraphicDev {
 
 
   public:
+    virtual void init(const uint8_t* fnt, uint16_t ln, uint8_t kbd_type, uint8_t* extmem, uint8_t vmode, uint8_t rt, uint8_t ifmode) =0;
+    virtual void setScreen(uint8_t mode, uint8_t rt) {};     // スクリーンモード設定
     inline uint8_t IS_PRINT(uint8_t ch)          // 表示可能文字判定(tTVscreenと同じ)
 	   { return (ch); };
 	  void set_allowCtrl(uint8_t flg)              // シリアルからの入力制御許可設定(tTVscreenと同じ)

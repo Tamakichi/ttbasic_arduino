@@ -49,13 +49,13 @@ class tTFTScreen :public tGraphicScreen {
 
   
  public:
-    void init(const uint8_t* fnt, uint16_t ln=256, uint8_t kbd_type=false, uint8_t* extmem=NULL, uint8_t vmode=TV_FONT_EX, uint8_t rt=3);
+    virtual void init(const uint8_t* fnt, uint16_t ln=256, uint8_t kbd_type=false, uint8_t* extmem=NULL, uint8_t vmode=TV_FONT_EX, uint8_t rt=3,uint8_t ifmode=0);
 
-  void setColor(uint16_t fc, uint16_t bc);     // 文字色指定
+    void setColor(uint16_t fc, uint16_t bc);     // 文字色指定
     void setAttr(uint16_t attr);                 // 文字属性
 
     uint8_t drawCurs(uint8_t x, uint8_t y);      // カーソル表示
-	void setScreen(uint8_t mode,uint8_t rt=3);     // スクリーンモード設定
+	  virtual void setScreen(uint8_t mode,uint8_t rt=3);     // スクリーンモード設定
 	
 	 // グラフィック描画
 	void  ginit() {};
