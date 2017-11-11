@@ -19,9 +19,9 @@ All text above, and the splash screen below must be included in any redistributi
 #include <stdlib.h>
 #include "Adafruit_SH1106_STM32.h"
 
-#define OLD_ARDUINO_STM32 1  // Arduino STM32ยซช R20170323:1A ป๊ศ~ 0
+#define OLD_ARDUINO_STM32 1  // Arduino STM32็’ฐๅขใ R20170323:1ใ€ ใใไปฅ้ 0
 
-#if OLD_ARDUINO_STM32 == 1
+#if OLD_ARDUINO_STM32 == 1 || defined(STM32_R20170323)
   #include <HardWire.h>
 #else 
   #include <Wire.h>

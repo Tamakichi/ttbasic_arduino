@@ -35,16 +35,18 @@
 // 2017/11/04 RTCのクロックソースをttconfig.hで設定可能に修正
 // 2017/11/07 フラッシュメモリ操作部を統合し、クラスモジュール化（tFlashManクラス)
 // 2017/11/08 デバイス画面部コードの共通化,エラーメッセージ定義をTTBAS_LIB/ttbasic_error.h,cppに外だし
+// 2017/11/08 RTClock仕様変更対応
 // 2017/11/19 OLED,TFT版でコンソール画面利用時にOLED,TFTにグラフィック表示可能に修正
+// 2017/11/10 PULSEIN()関数、RGB()関数の追加
 //
 
 #include <Arduino.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <wirish.h>
-#include "ttconfig.h"
-#include "tscreenBase.h"
-#include "tTermscreen.h"
+#include "ttconfig.h"     // コンパイル定義
+#include "tscreenBase.h"  // コンソール基本
+#include "tTermscreen.h"  // シリアルコンソール
 #include "sound.h"        // サウンド再生(Timer4 PWM端子 PB9を利用）
 
 #define STR_EDITION "Arduino STM32"
@@ -130,7 +132,7 @@ tTermscreen sc1;   // ターミナルスクリーン
   #endif
 #endif
 
-// *** SDカード管理 ****************
+// *** SDカード管理 *****************
 #include "sdfiles.h"
 #if USE_SD_CARD == 1
 sdfiles fs;
@@ -168,7 +170,7 @@ void error(uint8_t flgCmd);
 // **** PWM用設定 ********************
 #define TIMER_DIV (F_CPU/1000000L)
 
-// **** 仮想メモリ定義 ***************
+// **** 仮想メモリ定義 ****************
 #define V_VRAM_TOP  0x0000
 #define V_VAR_TOP   0x1900 // V0.84で変更
 #define V_ARRAY_TOP 0x1AA0 // V0.84で変更
@@ -197,9 +199,9 @@ const WiringPinMode pinType[] = {
 #define FNC_PWM     2  // PWM
 #define FNC_ANALOG  4  // アナログIN
 
-#define IsPWM_PIN(N) IsUseablePin(N,FNC_PWM)
-#define IsADC_PIN(N) IsUseablePin(N,FNC_ANALOG)
-#define IsIO_PIN(N)  IsUseablePin(N,FNC_IN_OUT)
+#define IsPWM_PIN(N) IsUseablePin(N,FNC_PWM)      // 指定ピンPWM利用可能判定
+#define IsADC_PIN(N) IsUseablePin(N,FNC_ANALOG)   // 指定ピンADC利用可能判定
+#define IsIO_PIN(N)  IsUseablePin(N,FNC_IN_OUT)   // 指定ピンデジタル入出力利用可能判定
 
 // ピン機能チェックテーブル
 #if USE_TFT == 1 || (USE_OLED == 1 && OLED_IFMODE == 1) // TFT/OLED(SPI) 利用専用環境
@@ -244,7 +246,6 @@ inline void c_putch(uint8_t c, uint8_t devno = CDEV_SCREEN) {
    sc->Serial_write(c); // シリアルへの文字列出力
 #if USE_NTSC == 1 || USE_TFT ==1 || USE_OLED == 1
   else if (devno == CDEV_GSCREEN )
-    //((tGraphicScreen*)sc)->gputch(c); // グラフィック画面へのグラフィック文字出力
     sc2.gputch(c); // グラフィック画面へのグラフィック文字出力
 #endif
   else if (devno == CDEV_MEMORY)
@@ -554,14 +555,14 @@ inline uint8_t getParam(int32_t& prm, uint8_t flgCmma) {
 }
 
 // '('チェック関数
-static inline uint8_t checkOpen() {
+inline uint8_t checkOpen() {
   if (*cip != I_OPEN)  err = ERR_PAREN;
   else cip++;
   return err;
 }
 
 // ')'チェック関数
-static inline uint8_t checkClose() {
+inline uint8_t checkClose() {
   if (*cip != I_CLOSE)  err = ERR_PAREN;
   else cip++;
   return err;
@@ -3684,7 +3685,6 @@ void iremove() {
 
 // BSAVE "ファイル名", アドレス
 void ibsave() {
-  //char fname[SD_PATH_LEN];
   uint8_t*radr; 
   int16_t vadr, len; 
   char* fname;
@@ -3795,8 +3795,6 @@ DONE:
 
 // TYPE "ファイル名"
 void  icat() {
-  //char fname[SD_PATH_LEN];
-  //uint8_t rc;
   int16_t line = 0;
   uint8_t c;
 
@@ -5062,7 +5060,7 @@ void basic() {
 #if USE_SCREEN_MODE== 0 // シリアルコンソール利用
   sc = &sc1;
   ((tTermscreen*)sc)->init(TERM_W,TERM_H,SIZE_LINE, workarea); // スクリーン初期設定
-#elif USE_NTSC == 1 || USE_TFT == 1 || USE_OLED == 1
+#elif USE_NTSC == 1 || USE_TFT == 1 || USE_OLED == 1 // デバイスコンソール利用
   sc = &sc2;
   scSizeMode = DEV_SCMODE;
   scrt = DEV_RTMODE;
@@ -5099,6 +5097,7 @@ void basic() {
   c_puts(STR_EDITION);             // 版を区別する文字列「EDITION」を表示
   c_puts(" " STR_VARSION);         // バージョンの表示
   newline();                       // 改行
+  err = 0;
   error();                         // 「OK」またはエラーメッセージを表示してエラー番号をクリア
   sc->show_curs(1);                // カーソル表示
     
@@ -5111,7 +5110,7 @@ void basic() {
     // 起動したプログラムの情報を表示
     newline();               // 改行
     c_puts("Autorun No."); 
-    putnum(CONFIG.STARTPRG,0);c_puts(" stopped.");
+    putnum(CONFIG.STARTPRG,0);c_puts(" done.");
     newline();
     err = 0; 
   }
