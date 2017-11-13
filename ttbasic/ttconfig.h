@@ -22,13 +22,13 @@
 // ※次の(2)～(4)は排他選択(全て0または、どれか1つが1)
 
 // ** (2)NTSCビデオ出力利用有無 **********************************************
-#define USE_NTSC    1 // 0:利用しない 1:利用する (デフォルト:1)
+#define USE_NTSC    0 // 0:利用しない 1:利用する (デフォルト:1)
 #define NTSC_SCMODE 1 // スクリーンモード(1～3 デオフォルト:1 )
 
 // ** (3)OLED(SH1106/SSD1306/SSD1309) (SPI/I2C)OLEDモジュール利用有無*********
-#define USE_OLED    0 // 0:利用しない 1:利用する (デフォルト:0)
+#define USE_OLED    1 // 0:利用しない 1:利用する (デフォルト:0)
                        // 利用時は USE_NTSC を0にすること
- #define OLED_IFMODE 1 // OLED接続モード(0:I2C 1:SPI デオフォルト:1 )
+ #define OLED_IFMODE 0 // OLED接続モード(0:I2C 1:SPI デオフォルト:1 )
  #define OLED_SCMODE 1 // スクリーンモード(1～3 デオフォルト:1 )
  #define OLED_RTMODE 0 // 画面の向き (0～3: デフォルト: 0)
 
