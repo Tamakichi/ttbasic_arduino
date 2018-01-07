@@ -326,7 +326,7 @@ const char *kwtbl[] __FLASH__  = {
 #define SIZE_KWTBL (sizeof(kwtbl) / sizeof(const char*))
 
 // i-code(Intermediate code) assignment
-enum ICode { 
+enum ICode:uint8_t { 
  I_GOTO, I_GOSUB, I_RETURN, I_FOR, I_TO, I_STEP, I_NEXT, I_IF, I_END, I_ELSE,   // 制御命令(10)
  I_COMMA, I_SEMI, I_COLON, I_SQUOT, I_MINUS, I_PLUS, I_MUL, I_DIV, I_DIVR, I_OPEN, I_CLOSE, I_DOLLAR,  // 演算子・記号(28)
  I_LSHIFT, I_RSHIFT, I_OR, I_AND, I_GTE, I_SHARP, I_GT, I_EQ, I_LTE, I_NEQ, I_NEQ2, I_LT, I_LAND, I_LOR, I_LNOT,
@@ -5004,7 +5004,9 @@ uint8_t icom() {
   case I_LRUN:  if(ilrun()) {  sc->show_curs(0); irun(clp);  sc->show_curs(1);  }  break; 
   case I_RUN:   sc->show_curs(0); irun();  sc->show_curs(1);   break; // RUN命令
   case I_RENUM: irenum(); break; // I_RENUMの場合
-  case I_DELETE:idelete();  break;    
+  case I_DELETE:idelete();  break;
+  case I_REM:
+  case I_SQUOT:    
   case I_OK:    rc = 0;     break; // I_OKの場合
   default:    // どれにも該当しない場合
     cip--;

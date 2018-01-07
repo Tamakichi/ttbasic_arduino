@@ -1,3 +1,5 @@
+// 修正日 2018/01/07 [ENTER]キー処理用にKEY_LFを追加
+
 #include "tGraphicScreen.h"
 
 void setupPS2(uint8_t kb_type);
@@ -133,17 +135,26 @@ void tGraphicScreen::draw_cls_curs() {
 
 // スクリーン編集
 uint8_t tGraphicScreen::edit() {
-  uint8_t ch;  // 入力文字
-
+  uint8_t ch = 0;       // 入力文字
+  uint8_t prv_ch  = 0;  // 1つ前の入力文字
+  
   do {
     //MOVE(pos_y, pos_x);
+    prv_ch = ch;
     ch = get_ch ();
     show_curs(false);
     if (dev != 1 || allowCtrl) { // USB-Serial(dev=1)は入力コードのキー解釈を行わない
       switch(ch) {
-        case KEY_CR:         // [Enter]キー
+        case KEY_ENTER:      // 0x0d [Enter]キー
           show_curs(true);
           return this->enter_text();
+          break;
+
+      case KEY_LF:         // シリアルからの[\r(0x0a)]入力対応
+        if (prv_ch != KEY_ENTER) {
+            show_curs(true);
+            return this->enter_text();
+          }
           break;
   
         case SC_KEY_CTRL_L:  // [CTRL+L] 画面クリア

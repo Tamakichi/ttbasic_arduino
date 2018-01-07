@@ -76,6 +76,7 @@
 #define OLD_RTC_LIB    1 // 0:2017/08/04以降のバージョン 1:R20170323相当
 #define USE_INNERRTC   1 // (デフォルト:1) ※ SDカード利用時は必ず1とする
 #define RTC_CLOCK_SRC  RTCSEL_LSE // 外部32768Hzオシレータ(デフォルトRTCSEL_LSE)
+                                  // RTCSEL_LSI,RTCSEL_HSEの指定も可能
 
 // ** SDカードの利用      0:利用しない 1:利用する *****************************
 #define USE_SD_CARD    1 // (デフォルト:1)

@@ -3,6 +3,8 @@
 // 作成日 2017/06/27 by たま吉さん
 // 修正日 2017/09/15 IsCurs()  カーソル表示有無の取得の追加
 // 修正日 2017/10/15 定義競合のためKEY_F1、KEY_F(n)をKEY_Fn1、KEY_Fn(n)変更
+// 修正日 2018/01/07 [ENTER]キー処理用にKEY_LFを追加
+
 
 #ifndef __tscreenBase_h__
 #define __tscreenBase_h__
@@ -14,7 +16,9 @@
 
 // 編集キーの定義
 #define KEY_TAB       '\t'   // [TAB] key
-#define KEY_CR        '\r'   // [Enter] key
+#define KEY_CR        0x0D   // [CR]
+#define KEY_LF        0x0A   // [LF]
+#define KEY_ENTER     '\r'   // [Enter] key
 #define KEY_BACKSPACE '\b'   // [Backspace] key
 #define KEY_ESCAPE    0x1B   // [ESC] key
 #define KEY_DOWN      0x80   // [↓] key
