@@ -38,6 +38,9 @@
 // 2017/11/08 RTClock仕様変更対応
 // 2017/11/19 OLED,TFT版でコンソール画面利用時にOLED,TFTにグラフィック表示可能に修正
 // 2017/11/10 PULSEIN()関数、RGB()関数の追加
+// 2018/01/08 CLS,REM,"'"を直接実行した場合、OKを表示しないように修正
+// 2018/01/09 INPUTの不具合対応（２桁変数対応、ENTERのみの入力禁止）
+// 2018/01/09 2進数定数対応
 //
 
 #include <Arduino.h>
@@ -290,7 +293,7 @@ short getrnd(short value) {
 // キーワードテーブル
 const char *kwtbl[] __FLASH__  = {
  "GOTO", "GOSUB", "RETURN", "FOR", "TO", "STEP", "NEXT", "IF", "END", "ELSE",       // 制御命令(10)
- ",", ";", ":", "\'","-", "+", "*", "/", "%", "(", ")", "$", "<<", ">>", "|", "&",  // 演算子・記号(29)
+ ",", ";", ":", "\'","-", "+", "*", "/", "%", "(", ")", "$", "`","<<", ">>", "|", "&",  // 演算子・記号(31)
  ">=", "#", ">", "=", "<=", "!=", "<>","<", "AND", "OR", "!", "~", "^", "@",     
  "CLT", "WAIT",  // 時間待ち・時間計測コマンド(2) 
  "POKE",         // 記憶領域操作コマンド(1)
@@ -301,7 +304,7 @@ const char *kwtbl[] __FLASH__  = {
  "I2CW", "I2CR", "IN", "ANA", "SHIFTIN",
  "SREADY", "SREAD", "EEPREAD",
  "PSET","LINE","RECT","CIRCLE", "BITMAP", "GPRINT", "GSCROLL",  // グラフィック表示コマンド(7)
- "GPIO", "OUT", "POUT", "SHIFTOUT", "PULSEIN",                  // GPIO・入出力関連コマンド(4)
+ "GPIO", "OUT", "POUT", "SHIFTOUT", "PULSEIN",                  // GPIO・入出力関連コマンド(5)
  "SMODE", "SOPEN", "SCLOSE", "SPRINT", "SWRITE",                // シリアル通信関連コマンド(5)
  "LDBMP","MKDIR","RMDIR",/*"RENAME",*/ "FCOPY","CAT", "DWBMP", "REMOVE", // SDカード関連コマンド
  "HIGH", "LOW", "ON", "OFF",  // 定数
@@ -326,9 +329,9 @@ const char *kwtbl[] __FLASH__  = {
 #define SIZE_KWTBL (sizeof(kwtbl) / sizeof(const char*))
 
 // i-code(Intermediate code) assignment
-enum ICode { 
+enum ICode:uint8_t { 
  I_GOTO, I_GOSUB, I_RETURN, I_FOR, I_TO, I_STEP, I_NEXT, I_IF, I_END, I_ELSE,   // 制御命令(10)
- I_COMMA, I_SEMI, I_COLON, I_SQUOT, I_MINUS, I_PLUS, I_MUL, I_DIV, I_DIVR, I_OPEN, I_CLOSE, I_DOLLAR,  // 演算子・記号(28)
+ I_COMMA, I_SEMI, I_COLON, I_SQUOT, I_MINUS, I_PLUS, I_MUL, I_DIV, I_DIVR, I_OPEN, I_CLOSE, I_DOLLAR, I_APOST,  // 演算子・記号(31)
  I_LSHIFT, I_RSHIFT, I_OR, I_AND, I_GTE, I_SHARP, I_GT, I_EQ, I_LTE, I_NEQ, I_NEQ2, I_LT, I_LAND, I_LOR, I_LNOT,
  I_BITREV, I_XOR,  I_ARRAY, 
  I_CLT, I_WAIT,  // 時間待ち・時間計測コマンド(2)
@@ -340,7 +343,7 @@ enum ICode {
  I_I2CW, I_I2CR, I_DIN, I_ANA, I_SHIFTIN,
  I_SREADY, I_SREAD, I_EEPREAD,
  I_PSET, I_LINE, I_RECT, I_CIRCLE, I_BITMAP, I_GPRINT, I_GSCROLL, // グラフィック表示コマンド(7)
- I_GPIO, I_DOUT, I_POUT, I_SHIFTOUT, I_PULSEIN,                   // GPIO・入出力関連コマンド(4)
+ I_GPIO, I_DOUT, I_POUT, I_SHIFTOUT, I_PULSEIN,                   // GPIO・入出力関連コマンド(5)
  I_SMODE, I_SOPEN, I_SCLOSE, I_SPRINT, I_SWRITE,                  // シリアル通信関連コマンド(5)
  I_LDBMP, I_MKDIR, I_RMDIR, /*I_RENAME,*/ I_FCOPY, I_CAT, I_DWBMP, I_REMOVE,  // SDカード関連コマンド
  I_HIGH, I_LOW, I_ON, I_OFF,// 定数
@@ -359,10 +362,10 @@ enum ICode {
  I_LOAD, I_SAVE, I_BLOAD, I_BSAVE, I_LIST, I_NEW, I_REM, I_LET, I_CLV,  // プログラム関連 コマンド(16)
  I_LRUN, I_FILES, I_EXPORT, I_CONFIG, I_SAVECONFIG, I_ERASE, I_INFO,
  I_SCREEN, I_WIDTH, I_CONSOLE, // 表示切替
-  I_RENUM, I_RUN, I_DELETE, I_OK,  // システムコマンド(4)
+ I_RENUM, I_RUN, I_DELETE, I_OK,  // システムコマンド(4)
 
 // 内部利用コード
-  I_NUM, I_STR, I_HEXNUM, I_VAR,
+  I_NUM, I_STR, I_HEXNUM, I_BINNUM, I_VAR,
   I_EOL, 
 };
 
@@ -375,7 +378,7 @@ const uint8_t i_nsa[] = {
   I_UP, I_DOWN, I_RIGHT, I_LEFT,
   I_INKEY,I_VPEEK, I_CHR, I_ASC, I_HEX, I_BIN,I_LEN, I_STRREF,
   I_COMMA, I_SEMI, I_COLON, I_SQUOT,I_QUEST,
-  I_MINUS, I_PLUS, I_MUL, I_DIV, I_DIVR, I_OPEN, I_CLOSE, I_DOLLAR, I_LSHIFT, I_RSHIFT, I_OR, I_AND,
+  I_MINUS, I_PLUS, I_MUL, I_DIV, I_DIVR, I_OPEN, I_CLOSE, I_DOLLAR, I_APOST,I_LSHIFT, I_RSHIFT, I_OR, I_AND,
   I_GTE, I_SHARP, I_GT, I_EQ, I_LTE, I_NEQ, I_NEQ2, I_LT, I_LNOT, I_BITREV, I_XOR,
   I_ARRAY, I_RND, I_ABS, I_FREE, I_TICK, I_PEEK, I_I2CW, I_I2CR,
   I_OUTPUT_OPEN_DRAIN, I_OUTPUT, I_INPUT_PULLUP, I_INPUT_PULLDOWN, I_INPUT_ANALOG, I_INPUT_F, I_PWM,
@@ -706,7 +709,7 @@ int16_t getnum() {
   len = 0; //文字数をクリア
   while(1) {
     c = c_getch();
-    if (c == KEY_ENTER) {
+    if (c == KEY_ENTER && len) {
         break;
     } else if (c == SC_KEY_CTRL_C || c==27) {
       err = ERR_CTR_C;
@@ -811,10 +814,12 @@ uint8_t toktoi() {
   char* ptok;             // ひとつの単語の内部を指すポインタ
   char* s = lbuf;         // 文字列バッファの内部を指すポインタ
   char c;                 // 文字列の括りに使われている文字（「"」または「'」）
-  uint32_t value;            // 定数
-  uint32_t tmp;              // 変換過程の定数
+  uint32_t value;         // 定数
+  uint32_t tmp;           // 変換過程の定数
   uint16_t hex;           // 16進数定数
   uint16_t hcnt;          // 16進数桁数
+  uint16_t bin;           // 2進数定数
+  uint16_t bcnt;          // 2進数桁数
   uint8_t var_len;        // 変数名長さ
   char var_name[3];       // 変数名
   
@@ -860,6 +865,32 @@ uint8_t toktoi() {
         ibuf[len++] = I_HEXNUM;  //中間コードを記録
         ibuf[len++] = hex & 255; //定数の下位バイトを記録
         ibuf[len++] = hex >> 8;  //定数の上位バイトを記録
+      }      
+    }
+ 
+    // 2進数の変換を試みる $XXXX
+    if (key == I_APOST) {
+      if ( *s == '0'|| *s == '1' ) {    // もし文字が2進数文字なら
+        bin = 0;              // 定数をクリア
+        bcnt = 0;             // 桁数
+        do { //次の処理をやってみる
+          bin = (bin<<1) + (*s++)-'0' ; // 数字を値に変換
+          bcnt++;
+        } while ( *s == '0'|| *s == '1' ); //16進数文字がある限り繰り返す
+
+        if (bcnt > 16) {      // 桁溢れチェック
+          err = ERR_VOF;     // エラー番号オバーフローをセット
+          return 0;          // 0を持ち帰る
+        }
+  
+        if (len >= SIZE_IBUF - 3) { // もし中間コードが長すぎたら
+          err = ERR_IBUFOF;         // エラー番号をセット
+          return 0;                 // 0を持ち帰る
+        }
+        len--;    // I_APOSTを置き換えるために格納位置を移動
+        ibuf[len++] = I_BINNUM;  //中間コードを記録
+        ibuf[len++] = bin & 255; //定数の下位バイトを記録
+        ibuf[len++] = bin >> 8;  //定数の上位バイトを記録
       }      
     }
 
@@ -1067,6 +1098,7 @@ uint8_t* getELSEptr(uint8_t* p) {
       break;
     case I_NUM:     // 定数
     case I_HEXNUM: 
+    case I_BINNUM:
       lp+=3;        // 整数2バイト+中間コード1バイト分移動
       break;
     case I_VAR:     // 変数
@@ -1189,7 +1221,20 @@ void putlist(unsigned char* ip, uint8_t devno=0) {
         c_putch(' ',devno); //空白を表示
     }
     else
-    
+
+    //2進定数の処理
+    if (*ip == I_BINNUM) { //もし2進定数なら
+      ip++; //ポインタを値へ進める
+      c_putch('`',devno); //"`"を表示
+      if (*(ip + 1))
+          putBinnum(*ip | *(ip + 1) << 8, 16,devno); //値を取得して16桁で表示
+      else
+          putBinnum(*ip , 8,devno);  //値を取得して8桁で表示
+      ip += 2; //ポインタを次の中間コードへ進める
+      if (!nospaceb(*ip)) //もし例外にあたらなければ
+        c_putch(' ',devno); //空白を表示
+    }
+    else     
     //変数の処理(2017/07/26 変数名 A～Z 9対応)
     if (*ip == I_VAR) { //もし定数なら
       ip++; //ポインタを変数番号へ進める
@@ -1251,114 +1296,103 @@ void iinput() {
   short ofvalue;        // オーバーフロー時の設定値
   uint8_t flgofset =0;  // オーバーフロ時の設定値指定あり
 
- sc->show_curs(1);
-  for(;;) {           // 無限に繰り返す
-    prompt = 1;       // まだプロンプトを表示していない
+  sc->show_curs(1);
+  prompt = 1;       // まだプロンプトを表示していない
 
-    // プロンプトが指定された場合の処理
-    if(*cip == I_STR){   // もし中間コードが文字列なら
-      cip++;             // 中間コードポインタを次へ進める
-      i = *cip++;        // 文字数を取得
-      while (i--)        // 文字数だけ繰り返す
-        c_putch(*cip++); // 文字を表示
-      prompt = 0;        // プロンプトを表示した
+  // プロンプトが指定された場合の処理
+  if(*cip == I_STR){   // もし中間コードが文字列なら
+    cip++;             // 中間コードポインタを次へ進める
+    i = *cip++;        // 文字数を取得
+    while (i--)        // 文字数だけ繰り返す
+      c_putch(*cip++); // 文字を表示
+    prompt = 0;        // プロンプトを表示した
 
-      if (*cip != I_COMMA) {
-        err = ERR_SYNTAX;
+    if (*cip != I_COMMA) {
+      err = ERR_SYNTAX;
+      goto DONE;
+    }
+    cip++;
+  }
+
+  // 値を入力する処理
+  switch (*cip++) {         // 中間コードで分岐
+  case I_VAR:             // 変数の場合
+    index = *cip;         // 変数番号の取得
+    cip++;
+   
+    // オーバーフロー時の設定値
+    if (*cip == I_COMMA) {
+      cip++;
+      ofvalue = iexp();
+      if (err) {
         goto DONE;
       }
-      cip++;
+      flgofset = 1;
+    }
+    
+    if (prompt) {          // もしまだプロンプトを表示していなければ
+      if (index >=26) {
+       c_putch('A'+index%26);    // 変数名を表示
+       c_putch('0'+index/26-1);  // 変数名を表示
+      } else {
+        c_putch('A'+index);  // 変数名を表示
+      }
+      c_putch(':');        //「:」を表示
+    }
+    
+    value = getnum();     // 値を入力
+    if (err) {            // もしエラーが生じたら
+      if (err == ERR_VOF && flgofset) {
+        err = ERR_OK;
+        value = ofvalue;
+      } else {
+        return;            // 終了
+      }
+    }
+    var[index] = value;  // 変数へ代入
+    break;               // 打ち切る
+
+  case I_ARRAY: // 配列の場合
+    index = getparam();       // 配列の添え字を取得
+    if (err)                  // もしエラーが生じたら
+      goto DONE;
+
+    if (index >= SIZE_ARRY) { // もし添え字が上限を超えたら
+      err = ERR_SOR;          // エラー番号をセット
+      goto DONE;
     }
 
-    // 値を入力する処理
-    switch (*cip++) {         // 中間コードで分岐
-    case I_VAR:             // 変数の場合
-      index = *cip;         // 変数番号の取得
+    // オーバーフロー時の設定値
+    if (*cip == I_COMMA) {
       cip++;
-     
-      // オーバーフロー時の設定値
-      if (*cip == I_COMMA) {
-        cip++;
-        ofvalue = iexp();
-        if (err) {
-          goto DONE;
-        }
-        flgofset = 1;
-      }
-      
-      if (prompt) {          // もしまだプロンプトを表示していなければ
-        c_putch('A'+index);  // 変数名を表示
-        c_putch(':');        //「:」を表示
-      }
-      
-      value = getnum();     // 値を入力
-      if (err) {            // もしエラーが生じたら
-        if (err == ERR_VOF && flgofset) {
-          err = ERR_OK;
-          value = ofvalue;
-        } else {
-          return;            // 終了
-        }
-      }
-      var[index] = value;  // 変数へ代入
-      break;               // 打ち切る
-
-    case I_ARRAY: // 配列の場合
-      index = getparam();       // 配列の添え字を取得
-      if (err)                  // もしエラーが生じたら
-        goto DONE;
-
-      if (index >= SIZE_ARRY) { // もし添え字が上限を超えたら
-        err = ERR_SOR;          // エラー番号をセット
+      ofvalue = iexp();
+      if (err) {
         goto DONE;
       }
+      flgofset = 1;
+    }
 
-      // オーバーフロー時の設定値
-      if (*cip == I_COMMA) {
-        cip++;
-        ofvalue = iexp();
-        if (err) {
-          goto DONE;
-        }
-        flgofset = 1;
+    if (prompt) { // もしまだプロンプトを表示していなければ
+      c_puts("@(");     //「@(」を表示
+      putnum(index, 0); // 添え字を表示
+      c_puts("):");     //「):」を表示
+    }
+    value = getnum(); // 値を入力
+    if (err) {           // もしエラーが生じたら
+      if (err == ERR_VOF && flgofset) {
+        err = ERR_OK;
+        value = ofvalue;
+      } else {
+        goto DONE;
       }
+    }
+    arr[index] = value; //配列へ代入
+    break;              // 打ち切る
 
-      if (prompt) { // もしまだプロンプトを表示していなければ
-        c_puts("@(");     //「@(」を表示
-        putnum(index, 0); // 添え字を表示
-        c_puts("):");     //「):」を表示
-      }
-      value = getnum(); // 値を入力
-      if (err) {           // もしエラーが生じたら
-        if (err == ERR_VOF && flgofset) {
-          err = ERR_OK;
-          value = ofvalue;
-        } else {
-          goto DONE;
-        }
-      }
-      arr[index] = value; //配列へ代入
-      break;              // 打ち切る
-
-    default: // 以上のいずれにも該当しなかった場合
-      err = ERR_SYNTAX; // エラー番号をセット
-      goto DONE;
-    } // 中間コードで分岐の末尾
-
-    //値の入力を連続するかどうか判定する処理
-    switch (*cip) { // 中間コードで分岐
-    case I_COMMA:    // コンマの場合
-      cip++;         // 中間コードポインタを次へ進める
-      break;         // 打ち切る
-    case I_COLON:    //「:」の場合
-    case I_EOL:      // 行末の場合
-      goto DONE;
-    default:      // 以上のいずれにも該当しなかった場合
-      err = ERR_SYNTAX; // エラー番号をセット
-      goto DONE;
-    } // 中間コードで分岐の末尾
-  }   // 無限に繰り返すの末尾
-
+  default: // 以上のいずれにも該当しなかった場合
+    err = ERR_SYNTAX; // エラー番号をセット
+    goto DONE;
+  } // 中間コードで分岐の末尾
 DONE:  
   sc->show_curs(0);
 }
@@ -1659,6 +1693,7 @@ void irenum() {
         break;
       case I_NUM:  // 定数
       case I_HEXNUM: 
+      case I_BINNUM: 
         i+=3;      // 整数2バイト+中間コード1バイト分移動
         break;
       case I_VAR:  // 変数
@@ -4191,6 +4226,7 @@ int16_t ivalue() {
   //定数の取得
   case I_NUM:    // 定数
   case I_HEXNUM: // 16進定数
+  case I_BINNUM: // 2進数定数
     value = *cip | *(cip + 1) << 8; //定数を取得
     cip += 2;
     break; 
@@ -5004,7 +5040,10 @@ uint8_t icom() {
   case I_LRUN:  if(ilrun()) {  sc->show_curs(0); irun(clp);  sc->show_curs(1);  }  break; 
   case I_RUN:   sc->show_curs(0); irun();  sc->show_curs(1);   break; // RUN命令
   case I_RENUM: irenum(); break; // I_RENUMの場合
-  case I_DELETE:idelete();  break;    
+  case I_DELETE:idelete();  break;
+  case I_CLS:icls();
+  case I_REM:
+  case I_SQUOT:    
   case I_OK:    rc = 0;     break; // I_OKの場合
   default:    // どれにも該当しない場合
     cip--;
