@@ -4,6 +4,7 @@
 // 修正日 2017/08/05 ファンクションキーをNTSC版同様に利用可能対応
 // 修正日 2017/08/12 edit_scrollUp() で最終行が2行以上の場合の処理ミス修正
 // 修正日 2017/10/15 定義競合のためKEY_F1、KEY_F(n)をKEY_Fn1、KEY_Fn(n)変更
+// 修正日 2018/01/07 [ENTER]キー処理用にKEY_LFを追加
 
 #include "tscreenBase.h"
 
@@ -461,17 +462,25 @@ uint8_t tscreenBase::edit_scrollDown() {
 
 // スクリーン編集
 uint8_t tscreenBase::edit() {
-  uint8_t ch;  // 入力文字
+  uint8_t ch = 0;       // 入力文字
+  uint8_t prv_ch  = 0;  // 1つ前の入力文字
   do {
     //MOVE(pos_y, pos_x);
     ch = get_ch ();
     show_curs(false);
     switch(ch) {
-      case KEY_CR:         // [Enter]キー
+      case KEY_ENTER:      // [Enter]キー
         show_curs(true);
         return enter_text();
         break;
 
+      case KEY_LF:         // シリアルからの[\r(0x0a)]入力対応
+        if (prv_ch != KEY_ENTER) {
+          show_curs(true);
+          return this->enter_text();
+        }
+        break;
+      
       case SC_KEY_CTRL_L:  // [CTRL+L] 画面クリア
       case KEY_Fn(1):      // F1
         cls();
