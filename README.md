@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 ## 豊四季タイニーBASIC for Arduino STM32 V0.85β(18/01/09)
 
 (New) V0.85β: OLED/TFTモジュール対応版(旧版はreleasesの方からダウンロードできます)  
@@ -1134,4 +1133,3 @@ NOTE: Probably, there is no input means in serial monitor.
 
 (C)2012 Tetsuya Suzuki<br>
 GNU General Public License
->>>>>>> origin/ttbasic_arduino_lcd_plus
