@@ -11,6 +11,8 @@
 // 修正日 2017/11/10 DEV_SCMODE,DEV_IFMODE,MAX_SCMODE,DEV_RTMODE追加（内部処理用)
 // 修正日 2017/11/10 platform.local.txtに-DSTM32_R20170323定義がある場合、
 //                   OLD_RTC_LIB、OLD_WIRE_LIBより優先して安定版利用と判断してコンパイル
+// 修正日 2018/08/13 Arduino_STM32安定版・最新版判定は
+//                   platform.local.txtの-DSTM32_R20170323定義で判定するように修正
 //
 
 #ifndef __ttconfig_h__
@@ -22,13 +24,13 @@
 // ※次の(2)～(4)は排他選択(全て0または、どれか1つが1)
 
 // ** (2)NTSCビデオ出力利用有無 **********************************************
-#define USE_NTSC    1 // 0:利用しない 1:利用する (デフォルト:1)
+#define USE_NTSC    0 // 0:利用しない 1:利用する (デフォルト:1)
 #define NTSC_SCMODE 1 // スクリーンモード(1～3 デオフォルト:1 )
 
 // ** (3)OLED(SH1106/SSD1306/SSD1309) (SPI/I2C)OLEDモジュール利用有無*********
-#define USE_OLED    0 // 0:利用しない 1:利用する (デフォルト:0)
+#define USE_OLED    1 // 0:利用しない 1:利用する (デフォルト:0)
                        // 利用時は USE_NTSC を0にすること
- #define OLED_IFMODE 1 // OLED接続モード(0:I2C 1:SPI デオフォルト:1 )
+ #define OLED_IFMODE 0 // OLED接続モード(0:I2C 1:SPI デオフォルト:1 )
  #define OLED_SCMODE 1 // スクリーンモード(1～3 デオフォルト:1 )
  #define OLED_RTMODE 0 // 画面の向き (0～3: デフォルト: 0)
 
@@ -66,14 +68,10 @@
 // ** 起動時にBOOT1ピン(PB2)によるシリアルターミナルモード起動選択の有無
 #define FLG_CHK_BOOT1  1 // 0:なし  1:あり // (デフォルト:1)
 
-//** Wireライブラリ新旧指定対応
-#define OLD_WIRE_LIB  1 // 0:2017/08/04以降のバージョン 1:R20170323相当
-
 // ** I2Cライブラリの選択 0:Wire(ソフトエミュレーション) 1:HWire  *************
 #define I2C_USE_HWIRE  1 // (デフォルト:1)
 
 // ** 内蔵RTCの利用指定   0:利用しない 1:利用する *****************************
-#define OLD_RTC_LIB    1 // 0:2017/08/04以降のバージョン 1:R20170323相当
 #define USE_INNERRTC   1 // (デフォルト:1) ※ SDカード利用時は必ず1とする
 #define RTC_CLOCK_SRC  RTCSEL_LSE // 外部32768Hzオシレータ(デフォルトRTCSEL_LSE)
                                   // RTCSEL_LSI,RTCSEL_HSEの指定も可能

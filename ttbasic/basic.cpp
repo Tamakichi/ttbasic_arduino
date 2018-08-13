@@ -41,6 +41,7 @@
 // 2018/01/08 CLS,REM,"'"を直接実行した場合、OKを表示しないように修正
 // 2018/01/09 INPUTの不具合対応（２桁変数対応、ENTERのみの入力禁止）
 // 2018/01/09 2進数定数対応
+// 2018/08/13 Arduino_STM32安定版判定はSTM32_R20160323の定義の有無のみで判定するように修正
 //
 
 #include <Arduino.h>
@@ -53,7 +54,7 @@
 #include "sound.h"        // サウンド再生(Timer4 PWM端子 PB9を利用）
 
 #define STR_EDITION "Arduino STM32"
-#define STR_VARSION "Edition V0.85"
+#define STR_VARSION "Edition V0.85n"
 
 // TOYOSHIKI TinyBASIC プログラム利用域に関する定義
 #define SIZE_LINE 128    // コマンドライン入力バッファサイズ + NULL
@@ -113,7 +114,7 @@ tTermscreen sc1;   // ターミナルスクリーン
 #define KEY_ENTER 13
 
 // **** I2Cライブラリの利用設定 ****
-#if OLD_WIRE_LIB == 1 || defined(STM32_R20170323)
+#if defined(STM32_R20170323)
   // Wireライブラリ変更前の場合
   #if I2C_USE_HWIRE == 0
     #include <Wire.h>
@@ -2617,7 +2618,7 @@ int16_t ipulseIn() {
 // SETDATEコマンド  SETDATE 年,月,日,時,分,秒
 void isetDate() {
 #if USE_INNERRTC == 1
- #if OLD_RTC_LIB == 1 || defined(STM32_R20170323) // <<< RTClock R20170323安定版対応 >>>
+ #if defined(STM32_R20170323) // <<< RTClock R20170323安定版対応 >>>
   struct tm t;
   int16_t p_year, p_mon, p_day;
   int16_t p_hour, p_min, p_sec;

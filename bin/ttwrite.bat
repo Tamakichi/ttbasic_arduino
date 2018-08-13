@@ -1,4 +1,4 @@
-set arduino_stm32="E:\Arduino\IDE\arduino-1.8.3"
+set arduino_stm32="E:\Arduino\IDE\arduino-1.8.5"
 set dev=COM4
 
 @echo off

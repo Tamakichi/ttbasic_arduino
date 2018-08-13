@@ -19,16 +19,15 @@ All text above, and the splash screen below must be included in any redistributi
 #include <stdlib.h>
 #include "Adafruit_SH1106_STM32.h"
 
-#define OLD_ARDUINO_STM32 1  // Arduino STM32環境が R20170323:1、 それ以降 0
-
-#if OLD_ARDUINO_STM32 == 1 || defined(STM32_R20170323)
+#if defined(STM32_R20170323)
   #include <HardWire.h>
+  #define WIRE HardWire  // 2018/06/22 追記
 #else 
   #include <Wire.h>
+  #define WIRE TwoWire  // 2018/06/22 追記
 #endif 
 
-HardWire HWIRE(1,I2C_FAST_MODE);    // I2c1
-//HardWire HWIRE(2,I2C_FAST_MODE)   // I2c2
+WIRE HWIRE(1,I2C_FAST_MODE);         // I2c1  2018/06/22
 
 #ifndef swap
 #define swap(a, b) { int16_t t = a; a = b; b = t; }

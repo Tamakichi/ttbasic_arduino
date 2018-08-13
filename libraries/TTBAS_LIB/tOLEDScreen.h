@@ -7,7 +7,7 @@
 #ifndef __tOLEDScreen_h__
 #define __tOLEDScreen_h__
 
-#define OLED_DEV 0 // 0:SH1106 1:SSD1306/SSD1309
+//#define OLED_DEV 1 // 0:SH1106 1:SSD1306/SSD1309
 #include "tGraphicScreen.h"
 
 #if OLED_DEV == 0
