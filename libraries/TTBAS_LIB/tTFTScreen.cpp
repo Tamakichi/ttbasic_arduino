@@ -6,6 +6,7 @@
 // 2017/08/25 修正 グラフィック描画対応
 // 2017/08/28 スクリーン用メモリに確保済領域指定対応
 // 2017/11/05 デバッグ用出力消し忘れミスの対応
+// 2018/08/18 修正 init()に横位置補正、縦位置補正引数の追加（抽象クラスとのインタフェース互換のため）
 //
 
 #include <string.h>
@@ -46,7 +47,7 @@ static const uint16_t tbl_color[]  =
 
 
 // 初期化
-void tTFTScreen::init(const uint8_t* fnt, uint16_t ln, uint8_t kbd_type, uint8_t* extmem, uint8_t vmode, uint8_t rt, uint8_t ifmode) {
+void tTFTScreen::init(const uint8_t* fnt, uint16_t ln, uint8_t kbd_type, uint8_t* extmem, uint8_t vmode, int8_t rt, int8_t Hajst, int8_t Vajst,uint8_t ifmode) {
   this->font = (uint8_t*)fnt;
   this->tft = new Adafruit_ILI9341_STM_TT(TFT_CS, TFT_DC, TFT_RST,2); // Use hardware SPI
   this->tft->begin();

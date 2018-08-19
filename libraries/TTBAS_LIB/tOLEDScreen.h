@@ -2,13 +2,18 @@
 // file: tOLEDScreen.h
 // SH1106/SSD1306/SSD1309利用ターミナルスクリーン制御クラス
 // 2017/09/14 作成
+// 修正日 2018/08/18, init()に横位置補正、縦位置補正引数の追加（抽象クラスとのインタフェース互換のため）
 //
+
 
 #ifndef __tOLEDScreen_h__
 #define __tOLEDScreen_h__
 
-//#define OLED_DEV 1 // 0:SH1106 1:SSD1306/SSD1309
 #include "tGraphicScreen.h"
+
+#ifndef OLED_DEV
+  #define OLED_DEV 0 // 0:SH1106 1:SSD1306/SSD1309
+#endif
 
 #if OLED_DEV == 0
   #include <Adafruit_SH1106_STM32.h>
@@ -55,8 +60,7 @@ class tOLEDScreen :public tGraphicScreen {
 
   
  public:
-    virtual void init(const uint8_t* fnt, uint16_t ln=256, uint8_t kbd_type=false, uint8_t* extmem=NULL, uint8_t vmode=TV_FONT_EX, uint8_t rt=3, uint8_t ifmode=0);
-
+    virtual void init(const uint8_t* fnt, uint16_t ln=256, uint8_t kbd_type=false, uint8_t* extmem=NULL, uint8_t vmode=TV_FONT_EX, int8_t rt=3, int8_t Hajst=0, int8_t Vajst=0, uint8_t ifmode=0);
     void setColor(uint16_t fc, uint16_t bc);     // 文字色指定
     void setAttr(uint16_t attr);               // 文字属性
 

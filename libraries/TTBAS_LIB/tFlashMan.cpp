@@ -1,6 +1,7 @@
 //
 // 豊四季Tiny BASIC for Arduino STM32 フラッシュメモリ統合管理クラス
 // 2017/11/07 by たま吉さん
+// 2018/08/18 by たま吉さん,システム設定にNTSC横・縦補正の追加
 //
 
 #include <tFlashMan.h>
@@ -136,6 +137,10 @@ uint8_t tFlashMan::saveConfig(SystemConfig& config) {
   // 仮想EEPROMに設定値を保存する
   Status = EEPROM.write(CONFIG_NTSC, (uint16_t)config.NTSC);
   if (Status != EEPROM_OK) goto ERR_EEPROM;
+  Status = EEPROM.write(CONFIG_NTSC_HPOS, (uint16_t)config.NTSC_HPOS);
+  if (Status != EEPROM_OK) goto ERR_EEPROM;
+  Status = EEPROM.write(CONFIG_NTSC_VPOS, (uint16_t)config.NTSC_VPOS);
+  if (Status != EEPROM_OK) goto ERR_EEPROM;
   Status = EEPROM.write(CONFIG_KBD, (uint16_t)config.KEYBOARD);
   if (Status != EEPROM_OK) goto ERR_EEPROM;
   Status = EEPROM.write(CONFIG_PRG, (uint16_t)config.STARTPRG);
@@ -160,7 +165,9 @@ DONE:
 uint8_t tFlashMan::loadConfig(SystemConfig& config) {
   uint8_t rc =1;           // 関数戻り値
   uint16_t data;           // 仮想EEPROMからの取り出しデータ
-  config.NTSC      =  0;   // NTSC補正値のデフォルト値
+  config.NTSC      =  0;   // NTSC垂直同期補正値のデフォルト値
+  config.NTSC_HPOS =  0;   // NTSC横位置補正値のデフォルト値
+  config.NTSC_VPOS =  0;   // NTSC縦位置補正値のデフォルト値
   config.KEYBOARD  =  0;   // キーボード設定のデフォルト値(JP)
   config.STARTPRG  = -1;   // 自動起動のデフォルト値(自動起動なし)
 
@@ -172,7 +179,21 @@ uint8_t tFlashMan::loadConfig(SystemConfig& config) {
     } else {
       break;
     }
-      
+
+    if (EEPROM.read(CONFIG_NTSC_HPOS, &data) == EEPROM_OK) {
+      config.NTSC_HPOS = data;
+      rc = 0;
+    } else {
+      break;
+    }
+
+    if (EEPROM.read(CONFIG_NTSC_VPOS, &data) == EEPROM_OK) {
+      config.NTSC_VPOS = data;
+      rc = 0;
+    } else {
+      break;
+    }
+    
     // キーボード設定の参照
     if (EEPROM.read(CONFIG_KBD, &data) == EEPROM_OK) {
       config.KEYBOARD = data;
@@ -180,6 +201,7 @@ uint8_t tFlashMan::loadConfig(SystemConfig& config) {
     } else {
       break;
     }
+
     if (EEPROM.read(CONFIG_PRG, &data) == EEPROM_OK) {
       config.STARTPRG = data;  
       rc = 0;

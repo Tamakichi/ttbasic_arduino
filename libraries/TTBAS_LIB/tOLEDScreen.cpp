@@ -2,6 +2,7 @@
 // file: tOLEDScreen.cpp
 // SH1106/SSD1306/SSD1309利用ターミナルスクリーン制御クラス
 // 2017/09/14 作成
+// 修正日 2018/08/18, init()に横位置補正、縦位置補正引数の追加（抽象クラスとのインタフェース互換のため）
 //
 
 #include <string.h>
@@ -50,7 +51,7 @@ void tOLEDScreen::update() {
 //  rt       : 画面回転(0～3)
 //  ifmode   : インタフェース(0:I2C 1:SPI)
 //
-void tOLEDScreen::init(const uint8_t* fnt, uint16_t ln, uint8_t kbd_type, uint8_t* extmem, uint8_t vmode, uint8_t rt,uint8_t ifmode) {
+void tOLEDScreen::init(const uint8_t* fnt, uint16_t ln, uint8_t kbd_type, uint8_t* extmem, uint8_t vmode, int8_t rt,int8_t Hajst, int8_t Vajst, uint8_t ifmode) {
   this->font = (uint8_t*)fnt;
   if (ifmode == 0) {
 #if OLED_DEV == 0

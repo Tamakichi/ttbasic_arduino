@@ -47,8 +47,8 @@ int16_t getBottomLineNum();
 //
 // NTSC表示の初期設定
 // 
-void tTVscreen::tv_init(int16_t ajst, uint8_t* extmem, uint8_t vmode) { 
-  this->TV.TNTSC->adjust(ajst);
+void tTVscreen::tv_init(int16_t ajst, int16_t Hajst, int16_t Vajst, uint8_t* extmem, uint8_t vmode) { 
+  this->TV.TNTSC->adjust(ajst,Hajst,Vajst);
   this->TV.begin(vmode, NTSC_VIDEO_SPI, extmem); // SPI2を利用
 	
 #if NTSC_VIDEO_SPI == 2
@@ -222,13 +222,14 @@ void tTVscreen::INSLINE(uint8_t l) {
 //  l  : 1行の最大長
 // 戻り値
 //  なし
-void tTVscreen::init(const uint8_t* fnt, uint16_t ln, uint8_t kbd_type, uint8_t* extmem, uint8_t vmode, uint8_t NTSCajst, uint8_t ifmode) {
+void tTVscreen::init(const uint8_t* fnt, uint16_t ln, uint8_t kbd_type, uint8_t* extmem,
+                     uint8_t vmode, int8_t NTSCajst, int8_t Hajst, int8_t Vajst, uint8_t ifmode) {
   static const uint8_t tvmodde[]= {SC_224x216, SC_224x108, SC_112x108 };
 	this->font = (uint8_t*)fnt; 
 
   // ビデオ出力設定
   this->serialMode = 0;
-  this->tv_init(NTSCajst, extmem, tvmodde[vmode-1]);
+  this->tv_init(NTSCajst, Hajst, Vajst, extmem, tvmodde[vmode-1]);
   if (extmem == NULL) {
     tscreenBase::init(this->c_width,this->c_height, ln);
   } else {

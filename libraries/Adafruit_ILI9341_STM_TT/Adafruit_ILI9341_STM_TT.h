@@ -152,7 +152,8 @@ class Adafruit_ILI9341_STM_TT : public Adafruit_GFX {
     volatile uint32 *mosiport, *clkport, *dcport, *rsport, *csport;
     uint32_t  _cs, _dc, _rst, _mosi, _miso, _sclk;
     uint32_t  mosipinmask, clkpinmask, cspinmask, dcpinmask;
-	uint16_t lineBuffer[ILI9341_TFTHEIGHT]; // DMA buffer. 16bit color data per pixel
+  	//uint16_t lineBuffer[ILI9341_TFTHEIGHT]; // DMA buffer. 16bit color data per pixel
+  	uint16_t lineBuffer[1]; // DMA buffer. 16bit color data per pixel // 2018/8/16 Tamakichi
     uint8_t  spidev; // 2017/8/12 Tamakichi
 	#elif defined (__arm__)
     volatile RwReg *mosiport, *clkport, *dcport, *rsport, *csport;

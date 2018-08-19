@@ -11,12 +11,21 @@
 // 修正日 2017/11/10 DEV_SCMODE,DEV_IFMODE,MAX_SCMODE,DEV_RTMODE追加（内部処理用)
 // 修正日 2017/11/10 platform.local.txtに-DSTM32_R20170323定義がある場合、
 //                   OLD_RTC_LIB、OLD_WIRE_LIBより優先して安定版利用と判断してコンパイル
-// 修正日 2018/08/13 Arduino_STM32安定版・最新版判定は
-//                   platform.local.txtの-DSTM32_R20170323定義で判定するように修正
+// 修正日 2018/08/18 OLEDのデバイス指定をplatform.local.txtでも指定出来るように修正
 //
 
 #ifndef __ttconfig_h__
 #define __ttconfig_h__
+
+// ※1 ArduinoSTM32モジュール安定版を利用している場合、
+//     次の定義の修正が必要です。
+//     \hardware\Arduino_STM32\STM32F1\platform.local.txt  に下記の定義
+//      # These can be overridden in platform.local.txt
+//      compiler.c.extra_flags=-DSTM32_R20170323 -DOLED_DEV=X
+//      compiler.cpp.extra_flags=-DSTM32_R20170323  -DOLED_DEV=X
+//      
+//    -DOLED_DEVのXは、利用するOLEDタイプを指定
+//
 
 // ** (1)デフォルトスクリーンモード 0:シリアルターミナル 1:NTSC・OLED・TFTデバイススクリーン
 #define USE_SCREEN_MODE 1  // ※デバイススクリーン利用の場合、1を指定する (デフォルト:1)
@@ -24,28 +33,29 @@
 // ※次の(2)～(4)は排他選択(全て0または、どれか1つが1)
 
 // ** (2)NTSCビデオ出力利用有無 **********************************************
-#define USE_NTSC    0 // 0:利用しない 1:利用する (デフォルト:1)
+#define USE_NTSC    1 // 0:利用しない 1:利用する (デフォルト:1)
 #define NTSC_SCMODE 1 // スクリーンモード(1～3 デオフォルト:1 )
 
 // ** (3)OLED(SH1106/SSD1306/SSD1309) (SPI/I2C)OLEDモジュール利用有無*********
-#define USE_OLED    1 // 0:利用しない 1:利用する (デフォルト:0)
+#define USE_OLED    0  // 0:利用しない 1:利用する (デフォルト:0)
                        // 利用時は USE_NTSC を0にすること
  #define OLED_IFMODE 0 // OLED接続モード(0:I2C 1:SPI デオフォルト:1 )
  #define OLED_SCMODE 1 // スクリーンモード(1～3 デオフォルト:1 )
  #define OLED_RTMODE 0 // 画面の向き (0～3: デフォルト: 0)
 
-// ※1 OLEDモジュールはデフォルトでSH1106 SPIの設定です
-//     SSD1306/SSD1309を利用する場合、以下の修正も必要です
-//     libraries/TTBAS_LIB/tOLEDScreen.hの下記の値の修正
-//       #define OLED_DEV 0 // 0:SH1106 1:SSD1306/SSD1309
+//   ※2 OLED利用の場合、モジュールはデフォルトでSH1106 SPIの設定です
+//       SSD1306/SSD1309を利用する場合、以下の修正が必要です
+//       次の定義の -DOLED_DEVの修正（デフォルト値 0:SH1106)
+//         libraries\tOLEDScreen.h の
+//            #define OLED_DEV 1 // 0:SH1106 1:SSD1306/SSD1309 の定義
 //
-// ※2 ArduinoSTM32モジュール安定版以降のバージョンを利用している場合、
-//     次の定義の修正が必要です。
-//     libraries/Adafruit_SH1106_STM32/Adafruit_SH1106_STM32.cpp
-//       #define OLD_ARDUINO_STM32 1  // Arduino STM32環境が R20170323:1、 それ以降 0
-//     libraries/Adafruit_SSD1306_STM32_TT/Adafruit_SSD1306_STM32_TT.cpp
-//       #define OLD_ARDUINO_STM32 1  // Arduino STM32環境が R20170323:1、 それ以降 0
-//
+//       または、
+//          \hardware\Arduino_STM32\STM32F1\platform.local.txt  に下記の定義
+//           # These can be overridden in platform.local.txt
+//           compiler.c.extra_flags=-DSTM32_R20170323 -DOLED_DEV=1
+//           compiler.cpp.extra_flags=-DSTM32_R20170323  -DOLED_DEV=1
+//         
+
 
 // ** (4)TFTILI9341 SPI)液晶モジュール利用有無 *******************************
 #define USE_TFT     0 // 0:利用しない 1:利用する (デフォルト:0)

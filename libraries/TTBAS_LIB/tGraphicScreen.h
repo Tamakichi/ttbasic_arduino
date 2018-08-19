@@ -1,5 +1,6 @@
 //
-// 2017/08/25 
+// 2017/08/25 作成 by たま吉さん
+// 2018/08/18 修正 by たま吉さん,init()にNTSC用横位置補正、縦位置補正引数の追加
 //
 
 #ifndef __tGraphicScreen_h__
@@ -23,7 +24,7 @@ class tGraphicScreen : public tscreenBase , public tGraphicDev {
 
 
   public:
-    virtual void init(const uint8_t* fnt, uint16_t ln, uint8_t kbd_type, uint8_t* extmem, uint8_t vmode, uint8_t rt, uint8_t ifmode) =0;
+    virtual void init(const uint8_t* fnt, uint16_t ln, uint8_t kbd_type, uint8_t* extmem, uint8_t vmode, int8_t rt, int8_t Hajst, int8_t Vajst,uint8_t ifmode) =0;
     virtual void setScreen(uint8_t mode, uint8_t rt) {};     // スクリーンモード設定
     inline uint8_t IS_PRINT(uint8_t ch)          // 表示可能文字判定(tTVscreenと同じ)
 	   { return (ch); };

@@ -19,6 +19,7 @@
 //  修正日 2017/06/22, シリアルからは全てもコードを通す切り替え機能の追加
 //  修正日 2017/08/24, tone(),notone()の削除
 //  修正日 2017/11/08, 関数の一部のインライン化,init()の修正
+//  修正日 2018/08/18, init(),tv_init()に横位置補正、縦位置補正引数の追加
 //
 
 #ifndef __tTVscreen_h__
@@ -56,7 +57,7 @@ class tTVscreen : public tGraphicScreen {
     uint8_t* vram;       // VRAM先頭
     uint32_t *b_adr;     // フレームバッファビットバンドアドレス
 
-    void tv_init(int16_t ajst, uint8_t* extmem=NULL, uint8_t vmode=SC_DEFAULT);
+    void tv_init(int16_t ajst, int16_t Hajst, int16_t Vajst, uint8_t* extmem=NULL, uint8_t vmode=SC_DEFAULT);
 	  void tv_end();
 
   	uint8_t  drawCurs(uint8_t x, uint8_t y);
@@ -108,13 +109,13 @@ class tTVscreen : public tGraphicScreen {
     // スクリーンの初期設定
     virtual void init( const uint8_t* fnt,
     	       uint16_t ln=256, uint8_t kbd_type=false,
-    	       uint8_t* extmem=NULL, uint8_t vmode=1, uint8_t NTSCajst=0, uint8_t ifmode=0);                
+    	       uint8_t* extmem=NULL, uint8_t vmode=1, int8_t NTSCajst=0, int8_t Hajst=0, int8_t Vajst=0,uint8_t ifmode=0);                
 
   void end();   // スクリーンの利用の終了
   virtual void refresh_line(uint16_t l); // 行の再表示
   
   // 垂直同期信号補正
-  void  adjustNTSC(uint8_t ajst) {this->TV.TNTSC->adjust(ajst);};                      
+  void  adjustNTSC(int8_t ajst,int8_t hpos=0, int8_t vpos=0) {this->TV.TNTSC->adjust(ajst,hpos,vpos);};                      
 };
 
 #endif

@@ -127,7 +127,7 @@ However, SH1106 driver don't provide several functions such as scroll commands.
 
 class Adafruit_SH1106 : public Adafruit_GFX {
  public:
-  Adafruit_SH1106(int8_t SID, int8_t SCLK, int8_t DC, int8_t RST, int8_t CS);
+  //Adafruit_SH1106(int8_t SID, int8_t SCLK, int8_t DC, int8_t RST, int8_t CS);
   Adafruit_SH1106(int8_t DC, int8_t RST, int8_t CS, uint8_t _spidev = 1); // 2017/09/11 modified by Tamakichi 
   Adafruit_SH1106(int8_t RST);
 

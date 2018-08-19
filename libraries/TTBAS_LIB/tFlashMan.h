@@ -1,6 +1,7 @@
 //
 // 豊四季Tiny BASIC for Arduino STM32 フラッシュメモリ統合管理クラス
 // 2017/11/07 by たま吉さん
+// 2018/08/18 by たま吉さん,システム設定にNTSC横・縦補正の追加
 //
 
 #ifndef __tFlashMan_h__
@@ -12,9 +13,11 @@
 #include <ttbasic_types.h>
 
 // *** システム設定関連 **************
-#define CONFIG_NTSC 65534  // EEPROM NTSC設定値保存番号
-#define CONFIG_KBD  65533  // EEPROM キーボード設定
-#define CONFIG_PRG  65532  // 自動起動設定
+#define CONFIG_NTSC      65534  // EEPROM NTSC垂直同期補正
+#define CONFIG_KBD       65533  // EEPROM キーボード設定
+#define CONFIG_PRG       65532  // 自動起動設定
+#define CONFIG_NTSC_HPOS 65531  // EEPROM NTSC横位置補正
+#define CONFIG_NTSC_VPOS 65530  // EEPROM NTSC縦位置補正
 
 class tFlashMan {
  private:

@@ -17,18 +17,16 @@ All text above, and the splash screen below must be included in any redistributi
 *********************************************************************/
 
 #include "Adafruit_SSD1306_STM32_TT.h"
+#define USESPLASH  0
 
-#define OLD_ARDUINO_STM32 1  // Arduino STM32環境が R20170323:1、 それ以降 0
-
+// 2018/08/18 修正
 #if defined(STM32_R20170323)
   #include <HardWire.h>
-  #define WIRE HardWire  // 2018/08/13 追記
+  HardWire HWIRE(1, I2C_FAST_MODE);
 #else 
   #include <Wire.h>
-  #define WIRE TwoWire   // 2018/08/13 追記
+  #define HWIRE Wire
 #endif 
-
-WIRE HWIRE(1,I2C_FAST_MODE);         // I2c1  2018/08/13
 
 #ifndef swap
 #define swap(a, b) { int16_t t = a; a = b; b = t; }
@@ -37,7 +35,7 @@ WIRE HWIRE(1,I2C_FAST_MODE);         // I2c1  2018/08/13
 static SPIClass* pSPI; // 2017/9/12 Tamakichi
 
 // the memory buffer for the LCD
-
+#if USESPLASH == 1
 static uint8_t buffer[SSD1306_LCDHEIGHT * SSD1306_LCDWIDTH / 8] = { 
 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -108,6 +106,9 @@ static uint8_t buffer[SSD1306_LCDHEIGHT * SSD1306_LCDWIDTH / 8] = {
 #endif
 #endif
 };
+#else
+static uint8_t buffer[SSD1306_LCDHEIGHT * SSD1306_LCDWIDTH / 8];
+#endif
 
 uint8_t* Adafruit_SSD1306::VRAM() {
   return buffer;
@@ -170,7 +171,7 @@ void Adafruit_SSD1306::drawPixel(int16_t x, int16_t y, uint16_t color) {
     }
     
 }
-
+/*
 Adafruit_SSD1306::Adafruit_SSD1306(int8_t SID, int8_t SCLK, int8_t DC, int8_t RST, int8_t CS) : Adafruit_GFX(SSD1306_LCDWIDTH, SSD1306_LCDHEIGHT) {
   cs = CS;
   rst = RST;
@@ -179,7 +180,7 @@ Adafruit_SSD1306::Adafruit_SSD1306(int8_t SID, int8_t SCLK, int8_t DC, int8_t RS
   sid = SID;
   hwSPI = false;
 }
-
+*/
 // constructor for hardware SPI - we indicate DataCommand, ChipSelect, Reset 
 Adafruit_SSD1306::Adafruit_SSD1306(int8_t DC, int8_t RST, int8_t CS, uint8_t _spidev) : Adafruit_GFX(SSD1306_LCDWIDTH, SSD1306_LCDHEIGHT) {
   dc = DC;
@@ -208,13 +209,14 @@ void Adafruit_SSD1306::begin(uint8_t vccstate, uint8_t i2caddr, bool reset) {
   _i2caddr = i2caddr;
 
   // set pin directions
-  if (sid != -1){
+  if (dc != -1){
     pinMode(dc, OUTPUT);
     pinMode(cs, OUTPUT);
     csport      = portOutputRegister(digitalPinToPort(cs));
     cspinmask   = digitalPinToBitMask(cs);
     dcport      = portOutputRegister(digitalPinToPort(dc));
     dcpinmask   = digitalPinToBitMask(dc);
+/*
     if (!hwSPI){
       // set pins for software-SPI
       pinMode(sid, OUTPUT);
@@ -224,6 +226,7 @@ void Adafruit_SSD1306::begin(uint8_t vccstate, uint8_t i2caddr, bool reset) {
       mosiport    = portOutputRegister(digitalPinToPort(sid));
       mosipinmask = digitalPinToBitMask(sid);
       }
+*/
     if (hwSPI){
       pSPI->begin ();
       pSPI->setBitOrder(MSBFIRST);
@@ -234,6 +237,9 @@ void Adafruit_SSD1306::begin(uint8_t vccstate, uint8_t i2caddr, bool reset) {
   else
   {
     // I2C Init
+#if !defined(STM32_R20170323)
+    HWIRE.setClock(400000);
+#endif
     HWIRE.begin();
   }
 
@@ -373,7 +379,7 @@ void Adafruit_SSD1306::invertDisplay(uint8_t i) {
 }
 
 void Adafruit_SSD1306::ssd1306_command(uint8_t c) { 
-  if (sid != -1)
+  if (dc != -1)
   {
     // SPI
     //digitalWrite(cs, HIGH);
@@ -487,7 +493,7 @@ void Adafruit_SSD1306::dim(boolean dim) {
 }
 
 void Adafruit_SSD1306::ssd1306_data(uint8_t c) {
-  if (sid != -1)
+  if (dc != -1)
   {
     // SPI
     //digitalWrite(cs, HIGH);
@@ -528,7 +534,7 @@ void Adafruit_SSD1306::display(void) {
     ssd1306_command(1); // Page end address
   #endif
 
-  if (sid != -1)
+  if (dc != -1)
   {
     // SPI
     *csport |= cspinmask;

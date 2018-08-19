@@ -1,3 +1,15 @@
 # These can be overridden in platform.local.txt
+
+# 安定版利用時（STM32_R20170323 ）
+# OLED_DEV: 0 SH1106、 1 SSD1306/SSD1309 
 compiler.c.extra_flags=-DSTM32_R20170323
 compiler.cpp.extra_flags=-DSTM32_R20170323
+#compiler.c.extra_flags=-DSTM32_R20170323 -DOLED_DEV=0
+#compiler.cpp.extra_flags=-DSTM32_R20170323  -DOLED_DEV=0
+
+
+# 安定版以降利用時
+# OLED_DEV: 0 SH1106、 1 SSD1306/SSD1309
+#compiler.c.extra_flags=-DOLED_DEV=0
+#compiler.cpp.extra_flags=-DOLED_DEV=0
+

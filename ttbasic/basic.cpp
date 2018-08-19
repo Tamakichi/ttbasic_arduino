@@ -42,6 +42,8 @@
 // 2018/01/09 INPUTの不具合対応（２桁変数対応、ENTERのみの入力禁止）
 // 2018/01/09 2進数定数対応
 // 2018/08/13 Arduino_STM32安定版判定はSTM32_R20160323の定義の有無のみで判定するように修正
+// 2018/08/15 OLED,TFT利用時、CONFIGコマンドでキーボード設定が出来ない不具合の修正
+// 2018/08/19 CONFIG 0,n,n,n でNTSC信号の縦横位置補正が出来るように修正　
 //
 
 #include <Arduino.h>
@@ -54,7 +56,11 @@
 #include "sound.h"        // サウンド再生(Timer4 PWM端子 PB9を利用）
 
 #define STR_EDITION "Arduino STM32"
-#define STR_VARSION "Edition V0.85n"
+#ifdef STM32_R20170323
+ #define STR_VARSION "Edition V0.85a"
+#else
+ #define STR_VARSION "Edition V0.85n"
+#endif
 
 // TOYOSHIKI TinyBASIC プログラム利用域に関する定義
 #define SIZE_LINE 128    // コマンドライン入力バッファサイズ + NULL
@@ -147,7 +153,11 @@ sdfiles fs;
 #define FLASH_PAGE_NUM         128     // 全ページ数
 #define FLASH_PAGE_SIZE        1024    // ページ内バイト数
 #define FLASH_PAGE_PAR_PRG     4       // 1プログラム当たりの利用ページ数
-#define FLASH_SAVE_NUM         8       // プログラム保存可能数
+#ifdef STM32_R20170323
+  #define FLASH_SAVE_NUM       8       // プログラム保存可能数
+#else
+  #define FLASH_SAVE_NUM       6       // プログラム保存可能数
+#endif
 
 // フラッシュメモリ管理オブジェクト(プログラム保存、システム環境設定を管理）
 tFlashMan FlashMan(FLASH_PAGE_NUM,FLASH_PAGE_SIZE, FLASH_SAVE_NUM, FLASH_PAGE_PAR_PRG); 
@@ -1721,25 +1731,41 @@ void irenum() {
 // CONFIG 項目番号,設定値
 void iconfig() {
   int16_t itemNo;
-  int16_t value;
+  int16_t value,value2 = 0,value3 = 0;
 
   if ( getParam(itemNo, true) ) return;  
   if ( getParam(value, false) ) return;  
   switch(itemNo) {
 #if USE_NTSC == 1
-  case 0: // NTSC補正
-    if (value <0 || value >2)  {
+  case 0: // NTSC補正: 垂直同期[,横位置補正,縦位置補正]
+    if (value <-3 || value >3)  {
       err = ERR_VALUE;
-    } else {
-      ((tTVscreen*)sc)->adjustNTSC(value);
-      CONFIG.NTSC = value;
+      break;
     }
+    if (*cip == I_COMMA) {
+       cip++;
+       if ( getParam(value2, -32,32, true) ) return;  // 横位置補正
+       if ( getParam(value3, -32,32, false) ) return; // 縦位置補正
+    }
+    
+    ((tTVscreen*)sc)->adjustNTSC(value,value2,value3);
+    CONFIG.NTSC = value;
+    CONFIG.NTSC_HPOS = value2;
+    CONFIG.NTSC_VPOS = value3;
+    if (scSizeMode != SCSIZE_MODE_SERIAL) {
+        sc->end();
+        ((tGraphicScreen*)sc)->init(ttbasic_font, SIZE_LINE, CONFIG.KEYBOARD,workarea, 
+                                              scSizeMode, CONFIG.NTSC,CONFIG.NTSC_HPOS,CONFIG.NTSC_VPOS,0);
+        sc->locate(0,0);
+     }    
     break;
+#endif
+#if USE_NTSC == 1 || USE_OLED == 1 || USE_TFT == 1
   case 1: // キーボード補正
     if (value <0 || value >1)  {
       err = ERR_VALUE;
     } else {
-      ((tTVscreen*)sc)->reset_kbd(value);
+      ((tGraphicScreen*)sc)->reset_kbd(value);
       CONFIG.KEYBOARD = value;
     }
     break;
@@ -2051,7 +2077,7 @@ void icls() {
 #endif
   if (mode == 0) {
     sc->cls();
-   sc->locate(0,0);
+    sc->locate(0,0);
   }
 #if USE_OLED || USE_TFT
   else if (mode == 1) {
@@ -2496,7 +2522,6 @@ int16_t ii2cw() {
   if (getParam(top, 0, 32767, true)) return 0;
   if (getParam(len, 0, 32767,false)) return 0;
   if (checkClose()) return 0;
-
   ptr  = v2realAddr(top);
   cptr = v2realAddr(ctop);
   if (ptr == 0 || cptr == 0 || v2realAddr(top+len) == 0 || v2realAddr(ctop+clen) == 0) 
@@ -2531,7 +2556,6 @@ int16_t ii2cr() {
   if (getParam(rdtop, 0, 32767, true)) return 0;
   if (getParam(rdlen, 0, 32767,false)) return 0;
   if (checkClose()) return 0;
-
   sdptr = v2realAddr(sdtop);
   rdptr = v2realAddr(rdtop);
   if (sdptr == 0 || rdptr == 0 || v2realAddr(sdtop+sdlen) == 0 || v2realAddr(rdtop+rdlen) == 0) 
@@ -3924,7 +3948,8 @@ void iscreen() {
   scSizeMode = mode; // 新しい画面サイズモードの保持
   scmode = 1;        // シリアルコンソールOFF
  #if USE_NTSC == 1   
-  ((tGraphicScreen*)sc)->init(ttbasic_font, SIZE_LINE, CONFIG.KEYBOARD,workarea, scSizeMode, CONFIG.NTSC,0); 
+  ((tGraphicScreen*)sc)->init(ttbasic_font, SIZE_LINE, CONFIG.KEYBOARD,workarea, 
+                              scSizeMode, CONFIG.NTSC,CONFIG.NTSC_HPOS,CONFIG.NTSC_VPOS,0); 
  #elif USE_TFT == 1 || USE_OLED == 1 
   ((tGraphicScreen*)sc)->setScreen(scSizeMode,scrt);
  #endif  
@@ -4000,7 +4025,8 @@ void iconsole(uint8_t useParam=false, uint8_t paramArg=CON_MODE_DEVICE) {
 
   #if USE_NTSC == 1
     // NTSCの場合、指定した画面サイズでのビデオ信号を生成する
-    ((tGraphicScreen*)sc)->init(ttbasic_font, SIZE_LINE, CONFIG.KEYBOARD, workarea, scSizeMode, CONFIG.NTSC, 0);
+    ((tGraphicScreen*)sc)->init(ttbasic_font, SIZE_LINE, CONFIG.KEYBOARD, workarea, scSizeMode,
+                                CONFIG.NTSC, CONFIG.NTSC_HPOS,CONFIG.NTSC_VPOS,0);
   #elif USE_TFT == 1 || USE_OLED == 1
     ((tGraphicScreen*)sc)->setScreen(scSizeMode, scrt);  // 画面表示設定
   #endif   
@@ -4307,7 +4333,7 @@ int16_t ivalue() {
   case I_GINP:  value = iginp();   break; //関数GINP(X,Y,W,H,C)
   case I_MAP:   value = imap();    break; //関数MAP(V,L1,H1,L2,H2)
   case I_ASC:   value = iasc();    break;// 関数ASC(文字列)
-    case I_RGB:   value = iRGB();  break;// 関数RGB(r,g,b)
+  case I_RGB:   value = iRGB();    break;// 関数RGB(r,g,b)
 
   case I_LEN:  // 関数LEN(変数)
     if (checkOpen()) break;
@@ -4693,7 +4719,7 @@ void iinfo() {
   c_puts("SRAM Free:");
   putnum((int16_t)(adr-hadr),0);
   newline();
-#if 1  
+#if 0
   // スクリーン関連
   c_puts("scmode:");putnum(scmode,1);newline();
   c_puts("scSizeMode:");putnum(scSizeMode,1);newline();
@@ -5104,12 +5130,12 @@ void basic() {
   sc = &sc2;
   scSizeMode = DEV_SCMODE;
   scrt = DEV_RTMODE;
-  ((tGraphicScreen*)sc)->init(ttbasic_font, SIZE_LINE, CONFIG.KEYBOARD, workarea, scSizeMode, DEV_RTMODE, DEV_IFMODE);
+  ((tGraphicScreen*)sc)->init(ttbasic_font, SIZE_LINE, CONFIG.KEYBOARD, workarea, scSizeMode, 
+                              DEV_RTMODE, CONFIG.NTSC_HPOS, CONFIG.NTSC_VPOS, DEV_IFMODE);
 #endif
   sc->Serial_mode(serialMode, defbaud); // デバイススクリーンのシリアル出力の設定
   prv_scSizeMode = scSizeMode;
   prv_scrt = scrt;
-
 #if USE_SCREEN_MODE== 1
  // 起動時の設定がコンソール指定の場合、切り替える
  if (scmode == 0) {
