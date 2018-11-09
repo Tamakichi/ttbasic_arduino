@@ -1,5 +1,11 @@
 ## 豊四季タイニーBASIC for Arduino STM32 V0.85β(18/01/09)
 
+### **(注意) このプロジェクト（リポジトリ）管理は下記に移行しました。**  
+- **Tamakichi/ttbasic_arduino_stm32 豊四季タイニーBASIC for Arduino STM32**
+https://github.com/Tamakichi/ttbasic_arduino_stm32  
+V0.85β以降のバージョンについては、こちらを参照して下さい。    
+
+---
 (New) V0.85β: OLED/TFTモジュール対応版(旧版はreleasesの方からダウンロードできます)  
 ※本バージョンはβ版です（マニュアルも作成中です^^）。旧版の方が安定動作します.  
 

@@ -1,0 +1,25 @@
+#############
+# Arduino
+#############
+libraries/FreeRTOS/
+libraries/Firmata/
+libraries/Robot_Control/
+libraries/Robot_IR_Remote/
+libraries/Robot_Motor/
+libraries/Adafruit_Circuit_Playground/
+libraries/LiquidCrystal/
+libraries/Adafruit_GFX/
+libraries/SdFat/
+libraries/sdfonts/
+libraries/W25Q64/
+libraries/exfonts/
+libraries/USB_Host_Shield_Library_2.0/
+libraries/TVout/
+libraries/TVoutfonts/
+hardware/
+hardware_new/
+hardware_old/
+backup/
+sw_old.bat
+sw_new.bat
+gccenv.bat
